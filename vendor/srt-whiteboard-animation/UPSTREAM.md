@@ -9,3 +9,5 @@
 This repository bundles only the runtime scripts, preview asset, drawing-hand asset, tests and license. The upstream `SKILL.md`, agent metadata and Git history are intentionally excluded so this package exposes one triggerable Skill.
 
 The bundled snapshot includes local renderer hardening used by the public Skill, including annotation-schema checks, hand-size controls, and installation from the repository's constrained `requirements-media.txt`. When updating it, compare upstream, retain the MIT notice, document the new commit and rerun the smoke render.
+
+The downstream English-localization branch translates documentation, CLI diagnostics, source comments, the preview interface, and corresponding test expectations without intentionally changing rendering algorithms. Upstream attribution and license remain intact.

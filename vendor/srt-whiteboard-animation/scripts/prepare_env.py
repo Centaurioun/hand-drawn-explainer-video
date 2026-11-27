@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-流式笔迹动画 - 环境引导脚本
+Streaming stroke animation - environment bootstrap script
 
-职责：
-  1. 在 skill 目录下建立隔离的 Python 虚拟环境（已存在则复用）
-  2. 核对运行所需的第三方库是否可导入
-  3. 自动补齐缺失的库
-  4. 末行打印 ENV_PY=<解释器路径>，供上层调用方捕获
+Responsibilities:
+  1. Create an isolated Python virtual environment under the skill directory (reuse it if present)
+  2. Check whether required third-party libraries can be imported
+  3. Automatically install missing libraries
+  4. Print ENV_PY=<interpreter path> on the final line for callers
 
-用法：
-  python prepare_env.py          # 建环境 + 补依赖，输出 ENV_PY
-  python prepare_env.py --check  # 仅探测，缺东西就以非零码退出
+Usage:
+  python prepare_env.py          # Create environment, install dependencies, and print ENV_PY
+  python prepare_env.py --check  # Check only; exit with a nonzero status if anything is missing
 """
 from __future__ import annotations
 
@@ -20,21 +20,21 @@ import sys
 import venv
 from pathlib import Path
 
-# skill 根目录 = 本脚本向上两级
+# Skill root directory: two levels above this script
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 VENV_ROOT = SKILL_ROOT / ".venv"
 
-# 解释器导入名 -> 用于显示的包名。实际安装统一读取仓库根目录的版本范围文件。
+# Interpreter import names -> display package names. Installation uses the version constraints file at the repository root.
 DEPS: dict[str, str] = {
     "cv2": "opencv-python-headless",
     "numpy": "numpy",
-    "av": "av",  # PyAV：纯 pip 安装的 H.264 编码，无需系统 ffmpeg
-    "PIL": "Pillow",  # render_annotation_preview.py 画区域编号预览图（含中文标签）
+    "av": "av",  # PyAV: pip-installable H.264 encoding without system ffmpeg
+    "PIL": "Pillow",  # render_annotation_preview.py draws numbered region previews (including multilingual labels)
 }
 
 
 def interpreter_path() -> Path:
-    """虚拟环境里的 python 可执行文件位置（跨平台）。"""
+    """Return the virtual environment's Python executable path (cross-platform)."""
     if sys.platform.startswith("win"):
         return VENV_ROOT / "Scripts" / "python.exe"
     return VENV_ROOT / "bin" / "python"
@@ -43,16 +43,16 @@ def interpreter_path() -> Path:
 def ensure_venv(check_only: bool) -> Path:
     py = interpreter_path()
     if VENV_ROOT.exists() and py.exists():
-        print(f"[ok] 复用现有虚拟环境: {VENV_ROOT}")
+        print(f"[ok] Reusing existing virtual environment: {VENV_ROOT}")
         return py
 
     if check_only:
-        print(f"[err] 虚拟环境尚未建立: {VENV_ROOT}")
+        print(f"[err] Virtual environment has not been created: {VENV_ROOT}")
         sys.exit(1)
 
-    print(f"[..] 建立虚拟环境: {VENV_ROOT}")
+    print(f"[..] Creating virtual environment: {VENV_ROOT}")
     venv.create(str(VENV_ROOT), with_pip=True)
-    print("[ok] 虚拟环境就绪")
+    print("[ok] Virtual environment ready")
     return py
 
 
@@ -67,7 +67,7 @@ def can_import(py: Path, import_name: str) -> bool:
 def install(py: Path, packages: list[str]) -> bool:
     if not packages:
         return True
-    print(f"[..] 安装依赖: {', '.join(packages)}")
+    print(f"[..] Installing dependencies: {', '.join(packages)}")
     requirements = SKILL_ROOT.parent.parent / "requirements-media.txt"
     install_args = ["-r", str(requirements)] if requirements.is_file() else packages
     res = subprocess.run(
@@ -76,10 +76,10 @@ def install(py: Path, packages: list[str]) -> bool:
         text=True,
     )
     if res.returncode != 0:
-        print(f"[err] 安装失败:\n{res.stderr}")
-        print("[hint] 检查 Python 版本、代理、证书与包源；也可手动安装 requirements-media.txt 后重试 --check。")
+        print(f"[err] Installation failed:\n{res.stderr}")
+        print("[hint] Check the Python version, proxy, certificates, and package index. You can also install requirements-media.txt manually and retry --check.")
         return False
-    print("[ok] 依赖安装完成")
+    print("[ok] Dependency installation complete")
     return True
 
 
@@ -98,12 +98,12 @@ def main() -> None:
 
     if missing:
         if check_only:
-            print(f"\n缺 {len(missing)} 个依赖: {', '.join(missing)}")
+            print(f"\nMissing {len(missing)} dependencies: {', '.join(missing)}")
             sys.exit(1)
         if not install(py, missing):
             sys.exit(1)
 
-    # 末行：供调用方捕获的约定输出
+    # Final line: conventional output for callers
     print(f"\nENV_PY={py}")
 
 
