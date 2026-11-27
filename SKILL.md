@@ -1,74 +1,74 @@
 ---
 name: hand-drawn-explainer-video-nikola
-description: 制作、修改和验收中文手绘知识讲解视频，交付配音、字幕、时间轴、可编辑工程和真实 MP4。支持两条不可混淆的制作路线：同一画布持续落墨的逐笔故事动画，以及用 SVG/HTML/GSAP 编排流程卡片、关系图和知识图形的程序动画。逐笔路线可选择自然肤色 Q 版人物、小黑风格或其他手绘风格，并可采用单场景、多幕故事、左右双语义岛等画面结构。用户说“边讲边画”“一笔一笔画出来”“白板手绘”“先画左边再画右边”“知识讲解动画”或希望把文稿、SRT、人物故事做成手绘视频时使用。也支持只输出生图/图生视频提示词。不用于写实数字人或假装已经完成无法验证的成片。
+description: Create, revise, and validate hand-drawn educational explainer videos, delivering narration, subtitles, timelines, editable projects, and real MP4 files. Supports two distinct production routes: stroke-by-stroke storytelling on a persistent canvas and programmatic animation of process cards, relationships, and diagrams using SVG/HTML/GSAP. Stroke stories support natural-skin-tone chibi characters, Xiaohei style, or other hand-drawn styles in single scenes, multi-scene stories, or two semantic islands. Use when users request drawing while narrating, stroke-by-stroke whiteboard animation, left-to-right drawing, educational animation, or conversion of scripts, SRT files, or biographies into hand-drawn videos. Also supports prompt-only delivery for image and video generation. Not intended for photorealistic avatars or unverifiable claims of completed videos.
 ---
 
-# Nikola 手绘讲解视频
+# Nikola Hand-Drawn Explainer Video
 
-把中文主题、文稿或 SRT 变成真正可播放、可检查、可继续编辑的手绘讲解视频。先识别用户要的是“画面被逐笔画出来”，还是“手绘风独立元素运动”；不能为了方便把一种效果冒充另一种效果。
+Turn a topic, script, or SRT into a playable, inspectable, editable hand-drawn explainer video. Distinguish genuine stroke-by-stroke drawing from independently moving hand-drawn elements; never substitute one for the other without disclosure.
 
-提示词模式无本地依赖；逐笔渲染器已随仓库打包，首次使用需创建隔离 Python 环境；程序动画模式需 Node.js、HyperFrames、浏览器和 FFmpeg。成片配音默认使用火山引擎刘飞音色，需用户自己的已授权账号或复用已有音轨；图像生成和视频模型为可选能力，可能产生费用。
+Prompt-only mode has no local media dependencies. The bundled stroke renderer requires an isolated Python environment on first use. Programmatic animation requires Node.js, HyperFrames, a browser, and FFmpeg. The existing default narration preset is Volcengine's Liu Fei voice; it requires the user's authorized account or a matching existing recording. Image and video generation are optional and may incur costs. For English narration, use a verified, user-approved English-capable voice or supplied audio rather than assuming that the legacy preset supports English.
 
-## 先选择交付范围
+## Choose the delivery scope
 
-- **只要提示词**：读 [prompt-workflow.md](references/prompt-workflow.md)，输出自包含提示词，不调用收费接口。
-- **样片**：制作用户指定片段；未指定时用 10–15 秒代表镜头验证人物、笔迹、字幕和节奏。
-- **完整视频**：先读 [安装与预检](references/preflight-and-recovery.md) 和 [完整流程](references/automation-workflow.md)。先内部验证代表镜头，再继续全片；只有用户要求逐步确认或存在关键选择时才暂停。
-- **修改已有视频**：保留未被要求修改的音轨、时间轴和素材，只重做受影响阶段。
+- **Prompts only:** Read [prompt-workflow.md](references/prompt-workflow.md) and deliver self-contained prompts without paid calls.
+- **Sample:** Produce the requested segment, or a representative 10–15-second shot to verify characters, strokes, subtitles, and pacing.
+- **Complete video:** Read [installation and preflight](references/preflight-and-recovery.md) and [production workflow](references/automation-workflow.md). Validate a representative shot before continuing; pause only when the user requests approval or a consequential decision is necessary.
+- **Revision:** Preserve audio, timelines, and assets that do not require changes; redo only affected stages.
 
-## 先选两条制作路线之一
+## Choose one of two production routes
 
-| 用户真正想要的效果 | 制作路线 | 必读 |
+| Desired result | Production route | Required reading |
 |---|---|---|
-| “画面被画出来”“边讲边画”“逐笔落墨”“笔尖跟着线走” | 逐笔故事动画 | [stroke-story-workflow.md](references/stroke-story-workflow.md) |
-| 流程卡片、概念关系、独立元素组合、确定性文字 | 程序动画 | HyperFrames + SVG/HTML + GSAP，读 [automation-workflow.md](references/automation-workflow.md) |
+| Drawing while narrating, visible strokes, a pen following the lines | Stroke-by-stroke storytelling | [stroke-story-workflow.md](references/stroke-story-workflow.md) |
+| Process cards, relationships, independent elements, deterministic text | Programmatic animation | HyperFrames + SVG/HTML + GSAP; [automation-workflow.md](references/automation-workflow.md) |
 
-逐笔故事动画选定后，再分别选择画面结构与视觉风格：
+After choosing stroke-by-stroke storytelling, select composition and visual style independently:
 
-- **画面结构**：单场景、多幕连续故事，或“先左后右并保留前文”的左右双语义岛。双语义岛只是逐笔故事的一种画面组织方法，参考 [semantic-island-storytelling.md](references/semantic-island-storytelling.md)。
-- **视觉风格**：自然肤色 Q 版人物、小黑风格，或用户指定的其他手绘风格。Q 版适合人物传记与历史；小黑适合抽象观点、方法论和隐喻。两种风格都能采用双语义岛，也都能采用其他画面结构。
+- **Composition:** Single scene, continuous multi-scene story, or left-to-right dual semantic islands that retain earlier content. Dual semantic islands are a composition technique within stroke storytelling, not a separate production route. See [semantic-island-storytelling.md](references/semantic-island-storytelling.md).
+- **Visual style:** Natural-skin-tone chibi characters, Xiaohei style, or another requested hand-drawn style. Chibi characters suit biography and history; Xiaohei suits abstract arguments, methods, and metaphors. Either style can use any composition.
 
-场景视频与“只输出 Flow/Nano Banana 提示词”是可选交付方式，不是本 Skill 的第三条手绘制作路线。自然连续人物动作或复杂运镜需要先核实视频模型、成本和一致性限制；只要提示词时读 [prompt-workflow.md](references/prompt-workflow.md)。
+Scene-video generation and Flow/Nano Banana prompt-only delivery are optional delivery methods, not a third route. For continuous natural character motion or complex camera movements, first verify model availability, costs, and consistency limitations. For prompts only, read [prompt-workflow.md](references/prompt-workflow.md).
 
-逐笔路线使用 `vendor/srt-whiteboard-animation/` 中随仓库发布的 MIT 后端快照。它不包含第二份 `SKILL.md`，不会单独触发或要求重复确认；主 Skill 统一负责路由、配音、字幕、渲染和验收。运行环境不可用时保存已完成资产并报告缺口；除非用户明确同意，不以 SVG 动画冒充真实逐笔绘制。
+Stroke storytelling uses the bundled MIT backend in `vendor/srt-whiteboard-animation/`. It contains no second `SKILL.md` and does not trigger independently or request redundant approvals. The main skill coordinates routing, narration, subtitles, rendering, and verification. If the runtime is unavailable, preserve completed assets and report the gap. Never pass off SVG animation as genuine stroke-by-stroke drawing without explicit user approval of the alternative.
 
-## 可选视觉风格
+## Optional visual styles
 
-- **Q 版人物故事**：自然肤色、人物身体、年龄和服装锚点清楚，适合传记、历史和人物观点。参考 [q-human-story-style.md](references/q-human-story-style.md) 与 [乔布斯案例](examples/stroke-story/steve-jobs/README.md)。
-- **小黑风格**：纯白、稀疏黑线、少量红橙蓝、留白和冷幽默动作主体，适合方法、系统、状态和隐喻。它是本仓库内置、可直接点选的公开预设；使用时必须读取 [完整视觉 DNA、来源说明与提示词骨架](references/xiaohei-style.md)。该风格借鉴 Ian 的开源项目，应始终称为“小黑风格”。
+- **Chibi character stories:** Natural skin tones and clear anatomy, age, and clothing anchors; suitable for biographies, history, and personal perspectives. See [q-human-story-style.md](references/q-human-story-style.md) and the [Steve Jobs example](examples/stroke-story/steve-jobs/README.md).
+- **Xiaohei style:** Pure white, sparse black lines, restrained red/orange/blue, negative space, and deadpan visual humor; suitable for methods, systems, states, and metaphors. Read [visual DNA, attribution, and prompt framework](references/xiaohei-style.md) before using this built-in preset. Retain the Xiaohei name to credit Ian's open-source project.
 
-程序化知识图形是制作路线，不是视觉风格。参考 [“什么是 Skill”程序动画案例](examples/program-animation/skill-demo/README.md)。逐笔案例见 [《约法三章》](examples/stroke-story/yuefa-sanzhang/README.md) 与 [《乔布斯的一生》](examples/stroke-story/steve-jobs/README.md)。
+Programmatic knowledge graphics are a production route, not a visual style. See the [What Is a Skill? demo](examples/program-animation/skill-demo/README.md). Stroke-story examples: [Three Articles of Law](examples/stroke-story/yuefa-sanzhang/README.md) and [The Life of Steve Jobs](examples/stroke-story/steve-jobs/README.md).
 
-参考图只影响当前项目，除非用户明确要求保存为新预设。人物、画风、动效和声音分别记录，不把换画风等同于换音色或重做旁白。
+Reference images apply only to the current project unless the user requests a new saved preset. Record character, visual style, motion, and voice independently; a change in art direction does not require new narration.
 
-## 公开默认与本地配置
+## Public defaults and local configuration
 
-仓库中的 [preferences.json](preferences.json) 只含无密钥默认值。用户指令和项目 `DESIGN.md` 优先。成片默认使用火山引擎 `seed-tts-2.0` 的刘飞音色 `zh_male_liufei_uranus_bigtts`；用户明确要求时可选择火山引擎其他已授权音色，已有与文稿一致的合格音轨优先复用。不要自动改用电脑系统朗读、edge-tts 或其他低质量本地 TTS；缺少授权音轨时可以继续提示词、画面和无配音阶段，但必须把配音列为未完成项。
+[preferences.json](preferences.json) contains only non-secret defaults. User instructions and project `DESIGN.md` take precedence. The legacy finished-video preset uses Volcengine `seed-tts-2.0`, speaker `zh_male_liufei_uranus_bigtts`. Other authorized voices may be selected explicitly; reuse qualified audio matching the script first. Do not silently substitute system speech, edge-tts, or other low-quality local TTS. If an authorized, language-appropriate audio track is unavailable, continue independent prompt, visual, and silent production stages and report narration as incomplete.
 
-首次使用先读 [安装说明](docs/INSTALL.md) 和 [配置说明](docs/CONFIGURATION.md)，再运行：
+Read [installation](docs/INSTALL.md) and [configuration](docs/CONFIGURATION.md) on first use, then run:
 
 ```text
 python scripts/setup_check.py
 ```
 
-完整视频在首次配音或长渲染前还要运行路线对应的预检。预检失败只阻止依赖该能力的阶段，不重做已经通过的音频、插画或字幕。
+Before first narration or a long render, run the route-specific preflight. A failed preflight blocks only dependent stages; do not redo approved audio, illustrations, or subtitles.
 
-## 核心制作规则
+## Core production rules
 
-1. **保留内容**：分别保存原稿、合成读音稿和字幕；未经授权不删观点、数字和限定词。
-2. **声音先行**：优先复用内容一致的完整音轨；新音轨尽量整段或按自然章节合成。
-3. **时间来自真实音频**：使用有效时间戳、强制对齐或复核后的句级停顿；不能把平均分配说成逐字对齐。
-4. **动画服务于解释**：逐笔路线按语义区域持续落墨；程序路线拆成可控元素。整图平移、缩放或淡入淡出只能辅助。
-5. **控制可画性**：真实笔迹速度取决于区域时间和源图复杂度；`hand-follow` 只平滑手部，不能让线条真正减速。
-6. **精确文字后期生成**：日期、专名、Logo、长中文和关键数字使用字幕或确定性文字层，不交给图片模型猜写。
-7. **先验证代表镜头**：检查人物一致性、抬笔、补色、遮挡、关键词和字幕，再批量渲染。
-8. **成片必须真实验收**：完整解码 MP4，检查全部场景、语义边界、切点、音轨和最后 0.3–0.5 秒。
+1. **Preserve content:** Save original script, synthesis script, and subtitles separately. Do not remove claims, numbers, or qualifiers without permission.
+2. **Audio first:** Reuse a complete matching track where possible; synthesize new narration as a whole or in natural sections.
+3. **Time from real audio:** Use valid timestamps, forced alignment, or reviewed sentence-level pauses; never describe estimated timing as word-level alignment.
+4. **Animation explains:** Reveal ink in semantic regions for stroke stories; use controllable elements for programmatic animation. Whole-image pans, zooms, and fades are supplementary only.
+5. **Control drawability:** True stroke speed depends on region duration and source complexity. `hand-follow` smooths the displayed hand only; it does not slow the actual strokes.
+6. **Deterministic text:** Render dates, proper names, logos, long text, and critical figures using subtitles or deterministic text layers, not image-model guesses.
+7. **Validate a representative shot:** Check character consistency, pen lifts, color fill, occlusion, keywords, and subtitles before batch rendering.
+8. **Validate real output:** Fully decode the MP4 and inspect every scene, semantic boundary, cut, audio track, and final 0.3–0.5 seconds.
 
-## 安全、费用和准确性
+## Safety, costs, and accuracy
 
-- 不把 API Key、Token、Cookie、请求头、本机绝对路径或私有模型目录写入仓库、命令参数、报告或工程 ZIP。
-- 账号型配音、生图和视频服务可能收费；先复用缓存，不盲目重试状态不明的请求。
-- 真实人物、公司、Logo、日期和数字需要可靠来源或确定性资产。风格参考不能保证实体准确。
-- 用户要求完整视频时，最少交付真实 MP4；工具支持时同时保留 SRT、旁白、时间轴、源图、标注和可编辑工程。
+- Never commit API keys, tokens, cookies, request headers, private absolute paths, or private model directories to the repository, commands, reports, or project ZIPs.
+- Account-based narration, image, and video generation may cost money. Reuse matching caches and avoid blindly retrying requests with unknown outcomes.
+- Verify real people, companies, logos, dates, and numbers using reliable sources or deterministic assets. Style references do not guarantee factual accuracy.
+- For a complete video, deliver at least a real MP4; where supported, retain SRT, narration, timeline, source images, annotations, and editable projects.
 
-质量与交付细节见 [quality-and-delivery.md](references/quality-and-delivery.md)。仓库结构、贡献和许可见 [README](README.md)。
+See [quality-and-delivery.md](references/quality-and-delivery.md) and the [README](README.md).

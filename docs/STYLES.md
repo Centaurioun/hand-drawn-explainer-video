@@ -1,28 +1,28 @@
-# 两条制作路线、画面结构与视觉风格
+# Production Routes, Composition, and Visual Styles
 
-不要把制作路线、画面结构和视觉风格混为一谈：
+Keep these three concepts distinct:
 
 ```text
-制作路线
-├─ 逐笔故事动画
-│  ├─ 画面结构：单场景 / 多幕故事 / 左右双语义岛
-│  └─ 视觉风格：Q版人物 / 小黑风格 / 其他手绘风格
-└─ 程序动画
+Production routes
+├─ Stroke storytelling
+│  ├─ Composition: single scene / multi-scene story / dual semantic islands
+│  └─ Style: chibi characters / Xiaohei / other hand-drawn styles
+└─ Programmatic animation
    ├─ HTML / SVG / GSAP
-   └─ 流程卡片 / 关系图 / 精确文字 / 知识图形
+   └─ Process cards / relationships / exact text / knowledge graphics
 ```
 
-| 类型 | 选项 | 适用内容 | 推荐触发说法 |
-|---|---|---|
-| 视觉风格 | 自然肤色 Q 版人物 | 人物传记、历史、创业故事 | “用 Q 版人物逐笔讲完他的一生，不要黑脸，年龄要变化” |
-| 视觉风格 | 小黑风格 | 方法、观点、抽象系统、冷幽默隐喻 | “用小黑风格边讲边画，白底少量彩色批注” |
-| 画面结构 | 左右双语义岛 | 左右因果、问题/答案、前后转折 | “先画左边边讲，再画右边，并保留左边内容” |
-| 制作路线 | 程序动画 | 流程、规则、关系、精确标签 | “用 HTML/SVG/GSAP 做手绘风流程卡片动画，文字必须准确可控” |
+| Type | Option | Suitable content | Example request |
+|---|---|---|---|
+| Visual style | Natural-skin-tone chibi characters | Biography, history, entrepreneurship | Draw the person's life stroke by stroke, with natural skin tones and changes in age. |
+| Visual style | Xiaohei | Methods, abstract systems, deadpan metaphors | Draw in Xiaohei style on white with restrained colored annotations. |
+| Composition | Dual semantic islands | Cause/effect, question/answer, before/after | Draw the left side first, then the right, preserving the left. |
+| Route | Programmatic animation | Processes, rules, relationships, exact labels | Use HTML/SVG/GSAP for hand-drawn process cards with deterministic text. |
 
-左右双语义岛只规定叙事与绘制顺序：先画左边、讲完一部分，再画右边，并保留前面内容。它不是第三条制作路线，也不是一种画风。Q 版人物和小黑风格都可以采用左右双语义岛，也可以采用单场景或多幕连续故事。
+Dual semantic islands specify narrative and drawing order, not a third route or separate art style. Both chibi and Xiaohei can use any composition.
 
-“手绘风”不自动等于逐笔绘制。用户说“一笔一笔”“笔尖跟随”“边讲边画”时使用逐笔模式；用户强调独立卡片、箭头、精确标签和元素变换时使用程序动画。
+Hand-drawn aesthetics alone do not establish stroke animation. Requests for each stroke, pen following, or drawing while narrating call for the stroke route; independent cards, arrows, precise labels, and transformations call for programmatic animation.
 
-《商用Skills_完整手绘视频》属于程序化知识图形：独立 SVG/HTML 人物、卡片、箭头和文字由 GSAP/HyperFrames 驱动。它的“手绘”来自视觉造型和描边风格，不是画笔沿同一幅位图持续落墨。逐笔路线则从源图提取线稿，在语义区域内执行 skeleton/stream 笔迹并逐步补色；两者可以共享旁白、字幕和最终验收，但不能互相冒充。
+The upstream commercial-skills video used independent SVG/HTML characters, cards, arrows, and text driven by GSAP/HyperFrames. Its hand-drawn look comes from styling and outlines rather than persistent raster ink. Stroke stories extract line art, trace skeleton/stream paths within semantic regions, and progressively fill color. The two routes can share narration, subtitles, and QA but must not be misrepresented.
 
-详见 [自然肤色 Q 版人物](../references/q-human-story-style.md)、[小黑风格](../references/xiaohei-style.md) 和 [双语义岛](../references/semantic-island-storytelling.md)。对应案例：[《约法三章》逐笔样片](../examples/stroke-story/yuefa-sanzhang/README.md)、[《乔布斯的一生》逐笔双语义岛](../examples/stroke-story/steve-jobs/README.md)、[“什么是 Skill”程序动画](../examples/program-animation/skill-demo/README.md)。
+See [Chibi characters](../references/q-human-story-style.md), [Xiaohei](../references/xiaohei-style.md), [Dual semantic islands](../references/semantic-island-storytelling.md), [Three Articles of Law](../examples/stroke-story/yuefa-sanzhang/README.md), [Steve Jobs](../examples/stroke-story/steve-jobs/README.md), and [What Is a Skill?](../examples/program-animation/skill-demo/README.md).

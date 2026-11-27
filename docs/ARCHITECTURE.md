@@ -1,18 +1,18 @@
-# 架构
+# Architecture
 
 ```text
-用户内容 / SRT / 参考图
-        ↓
-单一 Skill 路由与脚本设计
-   ┌────┴────────────┐
-逐笔故事             程序动画
-vendor MIT 后端       HTML/SVG/HyperFrames
-   └────┬────────────┘
-旁白 + 时间轴 + 确定性字幕/关键词
-        ↓
-最终 MP4 + 可编辑资产 + 验证报告
+User content / SRT / reference images
+                  ↓
+Single skill routing and script design
+         ┌────────┴──────────┐
+Stroke storytelling       Programmatic animation
+Bundled MIT backend       HTML/SVG/HyperFrames
+         └────────┬──────────┘
+Narration + timeline + deterministic subtitles/keywords
+                  ↓
+Final MP4 + editable assets + validation report
 ```
 
-`vendor/srt-whiteboard-animation/` 是运行时库，不是第二个 Skill：没有 `SKILL.md`、agent 元数据或独立触发规则。这样既保留连续笔迹能力，也避免上游交互流程与主 Skill 冲突。来源和修改边界见其 `UPSTREAM.md` 与 MIT `LICENSE`。
+`vendor/srt-whiteboard-animation/` is a runtime library, not a second skill. It contains no `SKILL.md`, agent metadata, or independent trigger rules. This preserves continuous-stroke capabilities without conflicting with the main skill. See its `UPSTREAM.md` and MIT `LICENSE` for origin and modification boundaries.
 
-样式层、音频层和渲染层彼此独立。换画风不应自动换声音；重做一幕也不应重新生成已经通过的旁白。
+Style, audio, and rendering are independent layers. Changing the art style must not automatically change the voice; rebuilding a scene must not regenerate approved narration.
