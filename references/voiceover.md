@@ -1,37 +1,40 @@
-# 配音与声音对齐
+# Narration and Audio Alignment
 
-## 默认与复用
+## Defaults and reuse
 
-面向成片时默认使用火山引擎语音合成的刘飞音色 `zh_male_liufei_uranus_bigtts`，资源模型为 `seed-tts-2.0`。优先复用与稿件一致、质量合格的完整音轨；需要新合成时沿用刘飞，只有用户明确指定才改用火山引擎中的其他已授权音色。不因换画风自动换声音。检查完整音轨是否已存在且稿件匹配，避免无谓收费。
+The upstream finished-video preset is Volcengine Liu Fei (`zh_male_liufei_uranus_bigtts`), resource `seed-tts-2.0`. Prefer a complete, qualified recording matching the script. For English, confirm an authorized English-capable voice or use supplied audio; do not assume the original speaker is compatible. Explicitly select alternative voices and never change voice merely because the visual style changed. Check existing assets before incurring charges.
 
-电脑系统朗读、edge-tts 或其他低质量本地文本转语音不作为默认成片替代方案。若没有火山引擎授权或用户提供的合格音轨，继续完成不依赖声音的工作并明确标记配音缺口；不要静默换音色，也不要把临时机器朗读交付为已完成旁白。用户明确要求仅做低成本草稿试听时，可以使用临时声音，但必须标为占位音轨且不能覆盖已确认的刘飞资产。
-短讲解一般一次合成整稿，听感会比每句单独请求更一致。超过当前服务限制时按语义自然段拆分，并保持同一声音和设置；1500 字符是本地助手的保守限制，不是声称官方永久限制。
+System speech, edge-tts, and other low-quality local TTS are not silent substitutes for finished narration. If authorization or suitable audio is missing, complete independent work and report the narration gap. A low-cost draft voice may be used only on explicit request; label it as placeholder and preserve approved narration.
 
-## 安全配音工具
+Short explainers usually sound more coherent synthesized as a whole. Split longer requests at natural semantic boundaries using the same voice and settings. The helper's 1,500-character limit is conservative, not a permanent provider limit.
 
-`scripts/volcengine_tts.ps1` 使用固定官方接口，保存输入摘要、音色、音频摘要和完整性元数据；相同输出且输入匹配时复用，不匹配时拒绝覆盖。缺少完整结束标记不保存为成功，不自动重发扣费请求。
+## Safe narration helper
+
+scripts/volcengine_tts.ps1 uses a fixed official endpoint, records input/voice/audio digests and integrity metadata, reuses matching output, refuses mismatched overwrites, rejects responses without a complete end marker, and never automatically retries chargeable requests.
 
 ```powershell
 pwsh -File <skill>/scripts/volcengine_tts.ps1 -TextFile <project>/narration.txt -OutputFile <project>/assets/narration.mp3 -DryRun
 pwsh -File <skill>/scripts/volcengine_tts.ps1 -TextFile <project>/narration.txt -OutputFile <project>/assets/narration.mp3
 ```
 
-可使用 Windows PowerShell 5.1（脚本保存为带 BOM 的 UTF-8）或 PowerShell 7。`-DryRun` 仅检查输入和计划，不读取密钥、不发请求、不收费。省略 `-Speaker` 时读取公开默认刘飞音色；用户明确选择其他火山音色时再传入 `-Speaker <音色ID>`。现场合成仅在用户要求/既有授权范围内执行。
+Use PowerShell 5.1 (UTF-8 BOM script) or 7. DryRun checks input and plan without reading credentials or making requests. Omitting -Speaker uses the legacy Liu Fei default; explicitly pass -Speaker <speaker-id> for an authorized language-compatible alternative. Live synthesis requires user authorization.
 
-凭据：优先使用已授权的 `VOLCENGINE_TTS_API_KEY` 环境变量；否则同一 Windows 用户的 `%LOCALAPPDATA%/CodexVoice/volcengine-key.dpapi`。不得把密钥放入脚本参数、技能配置、输出 JSON 或 ZIP。若密钥曾在对话公开，提醒用户轮换；不能擅自撤销它。
-随附脚本当前实现 `https://openspeech.bytedance.com/api/v3/tts/unidirectional`、`X-Api-Key`、资源 ID 和请求 UUID，并校验完整结束标记。提供商接口、资源 ID 和音色可能变化；首次调用或报协议错误时查当前官方文档，不猜参数，也不要为验证接口盲目产生付费请求。
-配音缓存必须同时匹配原稿摘要、音色、模型资源、采样参数和音频文件摘要；已有文件不匹配时拒绝覆盖。旧音轨没有缓存元数据时，人工核对稿件、音色与完整性后直接引用，不伪造请求记录或重新收费合成。
+Prefer the authorized VOLCENGINE_TTS_API_KEY environment variable, otherwise the same Windows user's %LOCALAPPDATA%/CodexVoice/volcengine-key.dpapi. Never include keys in arguments, skill configuration, JSON, or ZIPs. Advise rotation if a key was exposed; do not revoke it without authorization.
 
-## 对齐
+The helper implements https://openspeech.bytedance.com/api/v3/tts/unidirectional, X-Api-Key, resource ID, and request UUID, validating the completion marker. Verify current provider documentation before first use or after protocol errors; do not guess parameters or incur charges just to test.
 
-独立 ASR 复核前先执行 [预检](preflight-and-recovery.md)：模型文件非空、独立环境加载和短音频推理全部通过后再跑全片。使用服务原生词时间戳时也检查非空、顺序、边界和原稿对应关系；不要因 ASR 不可用而重新收费生成声音。
+Cache matching requires original script digest, voice, model resource, sample parameters, and audio digest. Refuse mismatched overwrites. For old audio without metadata, manually verify script, voice, and completeness; never fabricate request records or regenerate unnecessarily.
 
-优先级：真实有效词/句时间戳 → 原稿与音频强制对齐 → 句级 ASR 校对 → 实测停顿辅助人工/音频复核。空 `words` 数组表示没有词时间戳。
-静音检测能找到停顿，不能识别停顿前说了哪句话；只能作为辅助。词时间不可靠时采用完整句字幕，不伪造逐字卡点。
-对原稿中的英文、数字、多音字和最后一句特别核对。听起来漏字/错读时应修配音，不能只把字幕“改对”掩盖声音错误。阅读版“Skill”与合成读音替换要分别记录。
+## Alignment
 
-## 自然度与混音
+Before independent ASR review, follow [preflight](preflight-and-recovery.md): verify nonempty model files, load in an isolated environment, and infer on a short sample. Validate provider word timestamps for nonemptiness, order, boundaries, and script correspondence. ASR failure is not a reason to resynthesize.
 
-先保持整段上下文、标点和稳定语速，再考虑风格参数。不要用任意“情绪参数”或逐字切割制造自然感。整段仍生硬时只试一小段对比，保留原音色。
-不因补动画而重新生成已通过配音。BGM/音效是可选项，必须来源清楚、版权适用、低于旁白且不遮字；不能把网上可下载当作无版权。
-检查静音、削波、爆音、音轨总长、结尾截断与句间音量。音频与视频末尾的少量编码填充允许在帧级容差内，但不能因此漏掉正文。
+Priority: valid word/sentence timestamps → forced alignment against original script → sentence-level ASR review → measured pauses plus human/audio review. Empty words arrays mean no word timestamps. Silence detection identifies pauses, not what was spoken; use full-sentence subtitles rather than fabricated word timing.
+
+Check proper names, numbers, ambiguous pronunciations, and the final sentence. Correct missing or mispronounced audio rather than hiding it with corrected captions. Record differences between displayed text (e.g., Skill) and synthesis pronunciation separately.
+
+## Naturalness and mixing
+
+Preserve context, punctuation, and stable speaking rate before tuning style. Avoid arbitrary emotion parameters or word-by-word synthesis. If needed, compare a short passage while retaining the approved voice.
+
+Do not regenerate approved narration for visual revisions. Optional music and sound effects require clear sources and appropriate rights; mix below narration. Check silence, clipping, pops, duration, final truncation, and sentence-to-sentence loudness. Minor encoder padding is acceptable within frame-level tolerance, but must never omit content.

@@ -1,30 +1,26 @@
-# srt-whiteboard-animation 上游借鉴记录
+# srt-whiteboard-animation Upstream Review
 
-复核来源：<https://github.com/geeklee/srt-whiteboard-animation>，以及该仓库尚未合并的 PR #4。上游代码遵循 MIT License；复制代码时保留原许可证和署名。本记录用于后续维护时避免重复调研，也避免把实验性改动直接当成稳定默认值。
+Reviewed https://github.com/geeklee/srt-whiteboard-animation and its unmerged PR #4. The upstream code is MIT licensed; retain license and attribution when copying. This record avoids repeated research and treating experimental behavior as stable defaults.
 
-## 已吸收
+## Adopted
 
-- 字幕语义驱动的 `sequence` / `startMs` / `protectedRegions` 编排；
-- 持久画布和区域内 stream 连续笔迹，采用 `ink → color`；
-- 渲染前标注预检：画布、坐标、保护区、时序窗口和凝视时间；
-- 空允许掩码仍写满原时间窗，避免后续画面提前；
-- `--hand-height` 与 `--hand-follow` 分开控制，分别解决遮挡和移动观感；
-- 不同尺寸、帧率和时间基准的片段统一重编码后合并。主 Skill 通过 `finalize_stroke_video.py` 实现这一点。
+- Subtitle-driven sequence/startMs/protectedRegions scheduling.
+- Persistent canvas, regional stream paths, ink then color.
+- Annotation preflight for dimensions, coordinates, protected regions, timing, and holds.
+- Empty allowed masks retain the original time window so later art does not appear early.
+- Separate --hand-height and --hand-follow for occlusion and hand motion.
+- Re-encoding to uniform dimensions, frame rate, and time base before joining, implemented in finalize_stroke_video.py.
 
-## 已用自己的方案覆盖
+## Replaced with local approaches
 
-- 上游按单条 SRT 合成 edge-tts；本 Skill 保持用户选择的整段配音和真实音频时间轴，不因画面窗口过短强制加速语音；
-- 上游主流程偏 25–35 秒单幅白板；本 Skill 对多事件故事优先拆为 4–8 秒连续横屏场景，以保持人物尺度和故事性；
-- 上游基础合并器负责静音画面；本 Skill 的最终收尾同时处理批准源图补全、旁白、ASS 字幕和统一时间基准。
+- Rather than edge-tts per SRT cue, preserve user-selected whole narration and real timing; do not accelerate speech to fit short drawing windows.
+- Rather than default 25–35-second single canvases, prefer 4–8-second landscape scenes for multi-event stories.
+- Rather than silent merging alone, finalization also supports approved source completion, narration, ASS subtitles, and consistent time base.
 
-## 不设为默认
+## Not defaults
 
-- 小黑风格、极简线稿：可作为用户指定画风，不覆盖已确认的自然肤色 Q 版人物；
-- 每幕强制标题和 2–4 个手写要点：知识讲解可选，历史故事默认由画面和字幕表达；
-- 默认封面：只有发布需要时增加；
-- 橡皮擦幕间过渡：先做样片。它可能引入第二只大手并打断故事连续性；
-- 自动把语音压进字幕窗口：默认延长画面或调整分镜，不牺牲已确认配音的故事感。
+Xiaohei/minimal line art only when chosen; no overriding approved natural-skin-tone chibi art. Titles and 2–4 handwritten points are optional for educational work, not mandatory for historical stories. Covers only when needed. Test eraser transitions because an extra large hand can disrupt narrative. Extend visuals or revise shot planning rather than automatically compressing approved speech into subtitle windows.
 
-## 后续更新判断
+## Future updates
 
-查看上游更新时先区分 `main` 与未合并 PR。只吸收能够用真实样片验证、且不改变已确认画风和配音的机制。任何新默认项至少通过：标注错误用例、空掩码用例、复杂群像样片、多幕合并和最终音画检查。
+Distinguish upstream main from unmerged PRs. Adopt only mechanisms verified by real samples without altering approved style or narration. Test annotation errors, empty masks, complex group scenes, multi-scene merging, and final audiovisual output before changing defaults.

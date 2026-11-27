@@ -1,33 +1,36 @@
-# 验收与交付
+# Verification and Delivery
 
-执行前先按 [预检与恢复](preflight-and-recovery.md) 确认所需能力实际可运行；动画映射脚本与 CLI 的依赖须分别核实。固定共享文字避免在转场中重复叠加，正常文本碰撞修复后再长渲染。
+Confirm capabilities actually work using [preflight and recovery](preflight-and-recovery.md). Check animation-map dependencies separately from the CLI. Share fixed text across transitions and fix normal collisions before long renders.
 
-## 不同层级分别验证
+## Verify at distinct levels
 
-1. **文本**：原稿逐段与字幕比较，限定词/数字不得少；同音替换与读音稿另存。英文旁白与展示文本之间可以有已解释差异。
-2. **工程**：按当前 HyperFrames 版本运行完整检查，修复脚本、字体、隐藏场景、出框和动画冲突。转场信息提示逐一查看，不用忽略属性掩盖正常场景问题。
-3. **实际成片**：完整解码 MP4 的视频与音频，检查时长、帧率、尺寸、峰值与结尾。每个场景至少抽看一帧，并加看人物动作峰值、转场与最后一帧；抽图不能替代必要的动态观看/试听。
-4. **内容动作**：验证手/物件分别移动、阅读顺序跟随讲解、锁仍闭合、没有多手/缺肢、错误遮挡或中文变形。画面中只存在进度条运动不能证明主体动画有效。
+1. **Text:** Compare original and captions section by section; preserve qualifiers and numbers. Store pronunciation adjustments separately. Explain intentional differences between spoken and displayed text.
+2. **Project:** Run the current HyperFrames checks and fix scripts, fonts, hidden scenes, out-of-frame elements, and animation conflicts. Inspect transition warnings individually; do not suppress normal collisions.
+3. **Rendered video:** Fully decode video and audio. Check duration, frame rate, dimensions, audio peaks, and ending. Inspect at least one frame per scene plus action peaks, transitions, and final frame. Contact sheets cannot replace necessary playback/listening.
+4. **Actions and content:** Verify independent character/object movement, narrative reading order, closed locks, no extra/missing limbs, unintended occlusions, or malformed text. A moving progress bar does not prove subject animation works.
 
-逐笔故事模式额外检查：首帧无提前露线；笔尖贴近当前新增墨线；手部转向和跨笔画时速度自然且不抢画面；未开始区域和保护区不泄漏；已完成区域持续保留；逐幕最后 0.3–0.5 秒与批准源图对照，不能残留浅色衣物或纸纹造成的漏色白斑。两个以上语义区域时，必须加看前一区域完成前约 0.2 秒和后一区域开始后约 0.2 秒。关键词层要检查显现中段、完成帧及与人物/字幕的碰撞。`contour-wipe` 只能称为轮廓感知上色，不能描述成恢复了真人上色笔顺。
+For stroke storytelling check clean initial frame, pen near new ink, natural turns and pen lifts, no leakage from future/protected regions, and persistence of completed regions. Compare the final 0.3–0.5 seconds of each scene to approved source art, looking for white patches from pale clothing or paper texture. For two or more semantic regions, inspect about 0.2 seconds before one ends and 0.2 seconds after the next begins. Inspect mid-reveal and completed keyword frames for face/subtitle collisions. contour-wipe is contour-aware coloring, not recovered human brush order.
 
-多幕逐笔视频还要检查每个切点前后至少 3 帧以及最终视频最后 0.3–0.5 秒，确认没有短黑帧、重复帧、时间戳回退或突然叠入的裁切/放大源图。无损 concat 或 PyAV 合并失败时不要反复重试相同命令；改用 `finalize_stroke_video.py` 在统一帧率、尺寸和时间基准下重新编码。脚本默认 `--source-overlay never`；源图补全只在末帧对照确认漏色后显式启用，不得覆盖已经完整的逐笔过程。
+For multi-scene output inspect at least three frames on each side of every cut and the final 0.3–0.5 seconds. Look for black/duplicate frames, timestamp regressions, and abrupt crop/zoom overlays. If lossless concat or PyAV merging fails, use finalize_stroke_video.py to re-encode with common frame rate, dimensions, and time base. Default --source-overlay never; explicitly opt in only when final-frame comparison confirms missing color.
 
-某些版本的工程截图检查一次只覆盖少数时间点，传入全部镜头时间不代表全部截图都生成。核对实际图片数量与镜头数；必要时分批检查。自动生成的联系表只取每镜头一个时点，需另外查看进出场、动作峰值和末帧。
+Some project screenshot tools cover only a few timestamps per run. Verify actual screenshot counts and batch if needed. Automated contact sheets capture only one time per scene; inspect entrances, exits, action peaks, and endings separately.
 
-## 可复用检查器
+## Reusable checker
 
 ```text
 python <skill>/scripts/media_check.py --video final.mp4 --timeline timeline.json --report verification.json --contact-sheet contact.jpg --width 1080 --height 1920 --fps 30
 ```
 
-依赖 PyAV、NumPy；导出联系表另需 Pillow。先使用可用隔离环境，不随意更改其他项目依赖。`timeline.json` 采用自动成片参考里的 schema，可将 `narration_text` 写入后校验所有 caption 拼接；没有原稿时报告“未校验内容”而不是默认通过。
-该工具检查真实文件、帧数、音频数值、音轨/时间轴覆盖，并报告主体区域的运动统计。画幅和帧率按实际要求传入；默认运动区域排除顶部 23% 和底部 26%，不同布局用 `--motion-roi X0 Y0 X1 Y1` 指定归一化边界。统计不能区分整图平移与独立人物运动，低运动量标为待复核提醒。`alignment` 必须如实记录，检查器不执行语音识别、不证明语义同步、不评判人物美感，自动成功不能代替看片。退出码 0 仅表示本次自动检查无错误，报告中的警告与人工检查仍须处理。
-自动检查同样无法判断语义岛是否提前泄漏、关键词是否压脸，以及片尾是否发生内容正确但比例错误的源图覆盖；这些项目必须查看真实边界帧。
-可用 `--timeline-only` 对时间轴及正文一致性作离线校验，不渲染、不调用任何付费接口。
+Requires PyAV and NumPy; Pillow for contact sheets. Use an isolated environment. timeline.json follows the automation workflow schema; narration_text enables caption concatenation checks. Without original text report content as unverified, not passed.
 
-## 交付物
+The checker inspects real files, frame counts, audio values, timeline coverage, and motion statistics. Specify actual dimensions/fps. Default motion ROI excludes top 23% and bottom 26%; use --motion-roi X0 Y0 X1 Y1 for normalized custom bounds. Motion statistics cannot distinguish whole-image pans from character motion; low motion is a warning. Accurately record alignment. The checker does not perform ASR or prove semantic synchronization or aesthetics. Exit 0 only indicates no automated errors; warnings and human checks remain.
 
-最终 MP4；字幕 SRT；完整原稿；独立配音；封面（需要时）；时间轴 JSON；可编辑工程 ZIP；简短制作说明与验证报告。样片任务不必交全部工程。可编辑指保留源工程，不等于普通播放器能修改。
-ZIP 必须包含实际运行需要的资源，使用相对引用，无密钥/绝对用户目录/临时文件；声明外部字体及运行依赖。原稿与配音重用时不重复扣费，调用记录与实际账单分清。
-最后在对话中展示/链接真实 MP4，用当前任务要求的绝对输出路径。报告实际时长、分辨率、已完成范围及已知限制；不能把缺少后半段的样片称为完整片。
+It cannot detect premature island leakage, face-covering keywords, or disproportionate end overlays; inspect real boundary frames. Use --timeline-only for offline timeline/content checks without rendering or paid calls.
+
+## Deliverables
+
+Final MP4, SRT, original script, separate narration, optional cover, timeline JSON, editable project ZIP, concise production notes and verification report. Sample-only tasks need not include the whole project. Editable means source project retained, not editable in an ordinary player.
+
+ZIPs must contain required assets with relative references, no secrets, absolute user paths, or temporary files; disclose external fonts and runtime dependencies. Reuse approved narration without duplicate charges; distinguish requests from actual billing.
+
+Link the real MP4 at the requested output path. Report actual duration, dimensions, completed scope, and limitations; never label a partial sample a complete video.

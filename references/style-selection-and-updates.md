@@ -1,39 +1,36 @@
-# 参考图、风格选择与动画示例维护
+# Reference Images, Style Selection, and Example Maintenance
 
-用户指定参考图、切换画风、询问现有风格或要求更新示例时读取本页。只制作本次视频，不等于授权修改以后默认风格。
+Read when users provide references, change styles, ask what exists, or request example updates. A single video request does not authorize changing future defaults.
 
-## 当前实际资产
+## Actual available assets
 
-| 参考 | 说明位置 | 当前具备 | 当前不具备 |
+| Reference | Documentation | Available | Not available |
 |---|---|---|---|
-| 已确认程序动画 | [示例工程](../examples/program-animation/skill-demo/README.md) | SVG/HTML/GSAP 工程、旁白、时间轴、PNG 封面和 14 秒预览 MP4，可按需重新渲染 | 完整 36 秒公开 MP4；仓库保留的是 14 秒轻量预览 |
-| 已确认多幕逐笔故事 | [《约法三章》](../examples/stroke-story/yuefa-sanzhang/README.md) | 16:9 手速平滑版 MP4、七幕检查图、时间轴、验证报告和可编辑工程包 | 通用历史人物模板；案例资产不固定新项目的故事和角色 |
-| 已确认双语义岛逐笔故事 | [代表镜头](../examples/stroke-story/steve-jobs/README.md) | 16:9 批准源图、双区标注、区域预览和约 8.9 秒实际样片 | 通用人物模板；该资产不固定故事、角色或时长 |
-| Q 版蜡笔（Q Doodle） | [style-guide.md](style-guide.md) | 粗黑线、蜡笔色块、人物比例、配色、构图和 Flow 动效提示词 | 示例图、素材包、已验证动画工程 |
+| Programmatic animation | [Demo](../examples/program-animation/skill-demo/README.md) | SVG/HTML/GSAP project, audio, timeline, PNG, 14-second MP4 | Public full 36-second MP4 |
+| Multi-scene stroke story | [Three Articles of Law](../examples/stroke-story/yuefa-sanzhang/README.md) | 16:9 smoothed-hand MP4, seven-scene contact sheets, timeline, report, editable archive | Generic historical-character template |
+| Dual-island stroke story | [Steve Jobs](../examples/stroke-story/steve-jobs/README.md) | Approved 16:9 art, two-region annotation, preview, 8.9-second sample | Universal character/story/duration template |
+| Q Doodle crayon | [Style guide](style-guide.md) | Line, color, proportion, composition, and Flow motion instructions | Example image, asset pack, verified project |
 
-没有预制的多风格图库。以后增加实际资产时同步更新此表和主文件中的资产状态，不把计划中的文件登记成已经存在。
+No prebuilt multi-style gallery exists. Update the table and skill asset status only when real new assets exist.
 
-## 按参考图制作
+## Working from references
 
-先实际查看用户提供的图片；图片未附上且没有可访问路径时，请用户上传，不能自行猜画风。区分图片用途：只借用画风、保持指定角色，还是让这张图本身运动。已能从用户要求判断时无需再问。
+Inspect actual reference images; ask for an accessible image if missing. Distinguish style reference, specific-character preservation, and animation of the supplied image itself. Do not ask if the request already resolves this.
 
-在当前工程 DESIGN.md 中分别记录：
-- 画风：参考图来源、线条粗细与质感、配色、背景、人物比例、角色锚点和构图留白。
-- 动效：沿用哪份示例，或新的出现顺序、笔迹揭示、关节动作、节奏与转场；一张静图不能证明原作者的运动方式。
-- 声音：沿用当前授权音色；换画风不触发换音色或重做内容一致的旁白。
+In DESIGN.md separately record visual style (source, line quality, colors, background, proportions, character anchors, spacing), motion (example or new reveal sequence, strokes, joints, pacing, transitions), and approved voice. A still image does not establish original animation behavior. Changing style does not change voice or regenerate matching narration.
 
-选择适合素材的制作方式。程序矢量图适合独立物件动画，但不能假装完整保留蜡笔纹理；位图可拆层、补画遮挡部分、准备多姿态，再配合动画。自然连续人物动作可能需要图生视频服务，先核实实际接入与成本。生成或编辑位图时使用可用的图像生成工具并遵守其参考图要求，不将图生视频提示词冒充已经完成的成片。
+Choose suitable technology: vectors allow independent motion but cannot pretend to preserve crayon texture exactly; raster images may need layering, inpainting occlusions, or multiple poses. Natural continuous motion may require image-to-video services; verify access and costs. Use available generation tools with their reference-image requirements; prompts are not finished videos.
 
-先制作代表静帧和短动画验证人物一致性、笔触、字幕安全区与动作。不保证一张参考图能自动变出整片所需所有姿态或逐像素一致。用户只要样片则交付后等待；已授权整片则按主流程内部验证后继续，只有实际缺少必要决定时才询问。
+Create a representative still and short animation to check consistency, strokes, subtitle safety, and motion. No promise of arbitrary poses or pixel-perfect consistency from one reference. Deliver sample only when requested; for an authorized full video continue after internal checks unless essential decisions are missing.
 
-## 后续优化动画示例
+## Improving examples
 
-1. **确定修改范围**：是本条视频的局部调整、为当前默认示例升级，还是新增另一套可选风格。只改本条时保持 Skill 资产不变；“新增一套”不自动替换默认。
-2. **保留可回退版本**：在本次项目工作区复制旧工程并保存输入、版本或摘要，在副本上改。不要先覆盖 Skill 中唯一的已确认示例。
-3. **把效果和方法一起保存**：至少保留实际参考/代表画面、可编辑工程、DESIGN.md 与可播放短样片；动画规范记录独立元素、时间顺序和转场做法。不要只有截图或成片、丢掉可修改的做法。没有制作某类文件就明确标为缺失。
-4. **真实验证**：用新版本渲染短样片，检查代表动作、转场和字幕；同时检查原来正常的主要动作未被改坏。环境和媒体验收分别遵循 [preflight-and-recovery.md](preflight-and-recovery.md) 与 [quality-and-delivery.md](quality-and-delivery.md)。
-5. **按授权落到技能**：已有明确“更新此默认示例/保存为预设”的授权，验证后直接安装；仅展示新样片或讨论可能性不视为替换默认的授权。新增风格可在 assets 下用独立命名目录保存图片、样片与工程，规则放 references。目录名和文件按实际需要创建，不生成空预设。
-6. **同步入口和状态**：更新本页索引和 SKILL.md 的链接；默认配置确有变化时更新 preferences.json。新增可选择的能力才更新 description 和 agents/openai.yaml；每次微调动作不必改简介。修改现有要求，删除被取代的规则，避免叠加“以前作废”的补丁。
-7. **确认实际安装与移交**：验证相对链接、Skill 结构及实际安装文件与通过测试的版本一致；交付可预览样片和回退包，说明哪些风格已经可运行、哪些仍只有规范。
+1. Determine whether the change affects only this video, updates the default, or adds an optional style. Do not replace defaults for local changes or additions.
+2. Preserve a rollback copy and input/version/digest in the workspace. Never overwrite the only approved example first.
+3. Retain actual reference/representative images, editable source, DESIGN.md, and playable sample; document elements, timing, transitions, and missing assets.
+4. Render a new short sample, check motion/transitions/subtitles and regressions; follow [preflight](preflight-and-recovery.md) and [quality](quality-and-delivery.md).
+5. Install into the skill only when explicitly authorized to update defaults/save a preset. New styles may have named asset directories and reference rules; do not create empty placeholders.
+6. Synchronize index, SKILL.md, and preferences.json only as needed. Change description and agents/openai.yaml only for new selectable capabilities. Replace superseded rules rather than accumulating contradictory patches.
+7. Verify relative links, skill structure, installed files, and tested version; deliver previews and rollback package, distinguishing runnable styles from specification-only styles.
 
-description 是能力和适用场景摘要，不是版本号或更新日志。判断是否更新，需要核对实际安装文件和对应资产，不能只看简介有没有变化。
+Description summarizes capabilities and use cases, not versions or changelogs. Inspect actual installed assets to assess updates.

@@ -1,67 +1,65 @@
-# 完整成片流程
+# Complete Video Production Workflow
 
-## 1. 确定输入与复用资产
+## 1. Establish inputs and reusable assets
 
-检查现有原稿、完整配音、样片意见、角色/配色参考、输出目录和工具。先按 [preflight-and-recovery.md](preflight-and-recovery.md) 实测所选路线：渲染必需能力与可选独立语音复核分别检查，复用本地已验证配置。已有批准就是继续工作的依据；不要每个镜头都问确认。原稿变更与读音调整留痕。
+Inspect the original script, complete narration, sample feedback, character/color references, output directory, and tools. Follow [preflight and recovery](preflight-and-recovery.md) to test the chosen route, separately checking rendering requirements and optional independent speech review. Reuse verified local configuration and existing approvals; do not request approval for every shot. Record script and pronunciation changes.
 
-项目保存：`script.txt`（原稿）、`narration.txt`（合成输入，可有明确读音处理）、`assets/`、`DESIGN.md`、`timeline.json`、`index.html`、渲染日志和检查报告。项目按当前指令放置。
+Retain script.txt (original), narration.txt (synthesis input, with documented pronunciation adjustments), assets/, DESIGN.md, timeline.json, index.html, render logs, and inspection reports in the requested project directory.
 
-使用简短的项目状态文件记录稿件摘要、配音资产与来源、样片批准范围、每镜头素材/动画/检查状态、最近成功渲染路径。修改时从受影响阶段继续：仅改字重或配色不动配音；改口播后重新合成或剪辑相应音轨，并重新对齐受影响字幕和后续镜头。失败日志不保存密钥或原始请求头。
+Maintain a concise project status file with script digest, narration source, sample approval scope, asset/animation/inspection status per scene, and latest successful render. Resume at the affected stage: typography or color changes do not require new narration; spoken changes require corresponding audio edits and realignment of affected subtitles and later shots. Never log credentials or raw request headers.
 
-## 2. 先配音，再定时长
+## 2. Narration before timing
 
-遵循 [voiceover.md](voiceover.md)。时长由实际音频决定；镜头常为 4–6 秒但不是硬约束。用户有时长上限时，通过经授权的稿件调整或适度语速调整解决，不截断最后一句。
+Follow [voiceover](voiceover.md). Actual audio determines duration. Shots often last 4–6 seconds, but this is not mandatory. Respect duration limits through authorized script or moderate speech-rate adjustments, never by cutting the final sentence.
 
-时间轴至少保存以下字段，单位为秒：
+Store at least these fields, in seconds:
 
 ```json
 {
   "duration": 36.0,
   "audio_duration": 34.848,
-  "narration_text": "完整原稿，必须与下面各段拼接一致",
+  "narration_text": "Complete original script, matching the concatenated captions",
   "alignment": "sentence_pause_estimate",
   "scenes": [
-    {"n": 1, "start": 0.0, "end": 4.0, "caption": "对应原文"}
+    {"n": 1, "start": 0.0, "end": 4.0, "caption": "Corresponding original text"}
   ]
 }
 ```
 
-上面是字段说明，不是可直接通过检查的完整数据。实用值必须替换为真实全稿与所有镜头。字幕与合成读音文本不同时记录差异原因，不能静默把 ASR 错字覆盖原稿。
+This is a schema illustration, not complete valid production data. Replace placeholders with the actual full script and every shot. Document differences between subtitles and synthesis input; never silently replace the original with ASR errors.
 
-## 3. 做视觉编排表
+## 3. Plan visuals
 
-每镜头记录：起止时间、旁白原文、类型（人物情景/知识图形/实际素材）、最终构图、第一/第二/第三次变化、转场、素材来源、待验证项。不为凑数强加三次变化。画面应在对应概念被讲到时出现。
+For each shot record start/end, narration, type (character scene/knowledge graphic/real asset), final composition, successive changes, transition, sources, and verification needs. Do not force three changes merely to meet a quota. Visuals should appear when their concepts are narrated.
 
-人物负责引入疑惑、体验和提醒；流程、关系和对比优先用知识图形。屏幕操作与事实截图用真实素材。只按“每句换一张图”安排视频不能保证解释质量。
+Characters introduce questions, experiences, and reminders; diagrams explain processes, relationships, and comparisons. Use real assets for screen demonstrations and factual screenshots. One new picture per sentence does not ensure explanatory quality.
 
-先按主 Skill 的路线表确认视觉意图。用户要求画面被逐笔画出时，改读 [stroke-story-workflow.md](stroke-story-workflow.md)，视觉编排表以“共享画布 + 语义区域 + 开始时间”为主，不再按 SVG 独立场景设计。只有流程卡片、关系图和独立元素动画继续使用本页后续的 HyperFrames 规则。
+Confirm route using the main skill. For genuine drawing, use [stroke-story-workflow.md](stroke-story-workflow.md) and plan shared canvas, semantic regions, and start times rather than independent SVG scenes. Use the remaining HyperFrames rules only for programmatic elements.
 
-## 4. 制作可控素材与动画
+## 4. Create controllable assets and motion
 
-程序动画模式默认使用已安装的 HyperFrames 技能；制作前读它的作者规范、CLI 和相关动画参考。工具缺失先报告可行安装/替代，不把技能文件存在当作运行环境正常。
-可复制 `examples/program-animation/skill-demo/` 到新工作目录参考：人物独立手臂、气泡依次出现、卡片收拢到书、分步流程、材料归集、复用箭头、闭合权限锁、放大镜检查。先运行 `npm install` 获取固定版本依赖；换主题时重做文稿与语义关系，不能只改标题。
+Use the installed HyperFrames skill when available and read its authoring, CLI, and animation guidance. Report missing runtime capabilities; installed skill files alone do not establish readiness.
 
-工程细节：
-- 使用本地素材与本地 GSAP；字体声明明确，系统中文字体可使用 `@font-face` 的 `local()`，可移植交付时注明依赖或嵌入有授权字体。
-- SVG 外层固定构图坐标，内层命名组做动画，避免父子坐标混淆导致手臂飞走。
-- 未来场景的初始隐藏状态写在明确 CSS ID 规则中；不要只依靠暂停时间轴 t=0 的 `set()`。
-- 动态手臂替代原手臂，不能保留两份形成多手人物。放大镜、卡片、气泡不得误挡角色或字幕。
-- 同一属性不同时被多个动画控制；用有限重复、确定性的时间轴和框架规定的同步注册。
-- 把最长标题、字幕和最终同时可见元素排好，再加进入动作。合法的短暂转场交叠需实际查看，不能批量忽略所有碰撞。
-- 结尾留适量阅读停顿，结束后不突然跳回首帧或留黑画面。
+Copy examples/program-animation/skill-demo/ into a new project as a reference for independent arms, sequential bubbles, cards assembling into a book, processes, materials, reuse arrows, closed permission locks, and magnifying-glass checks. Run npm install for pinned dependencies; new topics need new scripts and semantic relationships, not merely a new title.
 
-复杂自然动作才使用视频模型。此前生成的图片不一定可直接拆成透明图层；需要拆层/重新生成或改为 SVG 时，说明质感变化。用户已批准的简化手绘方式无需再次确认。
+- Use local assets and GSAP; declare fonts explicitly, with local() in @font-face where appropriate. Disclose dependencies or embed licensed fonts for portability.
+- Fix outer SVG coordinates; animate named inner groups to avoid misplaced limbs.
+- Hide future scenes using explicit CSS ID rules, not only paused timeline set() calls at t=0.
+- Replace the original arm with its animated counterpart; avoid duplicate limbs and accidental occlusion by objects.
+- Do not animate the same property from multiple timelines; use finite repeats, deterministic timelines, and required synchronization registration.
+- Lay out longest titles, captions, and simultaneously visible elements before adding entrances. Inspect legitimate transition overlaps rather than ignoring all collisions.
+- Leave adequate final reading time; no sudden return to the first frame or black screen.
 
-## 5. 环境和渲染
+Use video models only for genuinely complex natural motion. Existing generated images may need layer separation, inpainting, regeneration, or SVG conversion; explain texture changes. Do not request approval again for already approved simplified art.
 
-先检查 Node、可工作的完整 FFmpeg/FFprobe 和渲染浏览器。先运行版本检查、音频探测和 H.264 编码器检查，再长时间渲染。
-已验证 HyperFrames 0.8.20；新项目按当前工具帮助选择并固定版本，不机械升级旧工程或批量改全局设置。用官方 CLI 初始化可用项目，保留它的项目指令；初始化的远程技能下载失败不等于本地已有插件失效，分别核实。
+## 5. Environment and rendering
 
-本次实测坑：某些剪辑软件内置 FFmpeg 能解码但无 `libx264`/`crf` 支持；复制共享版 exe 会因缺 DLL 无法启动。不要反复拿同一不完整组件重试。使用完整发行版，或当前可用的 `imageio_ffmpeg.get_ffmpeg_exe()`；后者不保证附带 FFprobe，需要单独查找有效 FFprobe。
-可在进程范围指定 `HYPERFRAMES_FFMPEG_PATH` / `HYPERFRAMES_FFPROBE_PATH`，不要改系统 PATH；本机缓存的浏览器路径也不是可移植配置。
+Verify Node, complete working FFmpeg/FFprobe, and browser; check versions, audio probing, and H.264 encoding before long renders. HyperFrames 0.8.20 was verified upstream; pin a version based on the current CLI help rather than upgrading existing projects indiscriminately. Initialize with official CLI, preserve project instructions, and distinguish failed remote skill downloads from local plugin readiness.
 
-先检查代表场景、最长字幕和转场，再运行当前 CLI 的 `check`（或对应版本的 lint/validate/inspect）。修复完成后验证 3–5 秒内部样段，再导出完整 MP4；不在排版检查尚未完成时启动全片。初次一般 2 个渲染 worker，按机器资源调节。长命令保存日志并反馈实质进展。编码失败只修环境/重新渲染，不重新请求 TTS 或所有图片。
+Some editor-bundled FFmpeg builds decode but lack libx264/crf; copied shared executables may lack DLLs. Use complete distributions or a verified imageio_ffmpeg.get_ffmpeg_exe(); the latter may require separate FFprobe. Set HYPERFRAMES_FFMPEG_PATH and HYPERFRAMES_FFPROBE_PATH at process scope, not global PATH. Cached browser paths are not portable.
 
-## 6. 检查和交付
+Check representative scenes, longest captions, and transitions; run current CLI check or equivalent lint/validate/inspect. Fix issues, render a 3–5-second internal sample, then export the full MP4. Start with two rendering workers and adjust to resources. Save logs and report substantive progress. Encoding failures require environment fixes or rerendering, not repeated TTS or image requests.
 
-执行 [quality-and-delivery.md](quality-and-delivery.md)。先样片的请求只交样片；样片已批准且要求全片时一直做到全片完成。完整成片应带可编辑工程及音频，不能让用户自己从代码导出才能观看。
+## 6. Verify and deliver
+
+Follow [quality-and-delivery.md](quality-and-delivery.md). Deliver only a sample when requested; after sample approval for a full video, continue to completion. A full video includes the playable output, editable project, and audio; users should not have to export it themselves.
