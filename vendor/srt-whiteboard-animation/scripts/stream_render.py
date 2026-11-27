@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-流式笔迹动画 - 单图渲染入口
+Stream-stroke animation — single-image rendering entry point
 
-把一张彩色图片渲染成「笔尖沿连续轨迹滑行、边走边落墨」的白板动画。
-全程分三个段落：
-  起笔(ink)   笔尖沿墨迹流铺下黑色线稿
-  添彩(color) 同一条轨迹回头，笔尖换上原色把画面点亮
-  凝视(gaze)  收笔后停留，展示完整原图
+Render a color image as a whiteboard animation with continuous pen movement and ink deposition.
+Rendering has three stages:
+  ink: the pen traces the ink stream and reveals black line art.
+  color: the pen follows the same path again to reveal original colors.
+  gaze: hold the complete source image after drawing.
 
-与“逐格跳变”的做法不同：本渲染器把绘制顺序视作笔尖的运动折线，
-在相邻落点之间做插值，墨刷随笔尖滑动连续落墨，形成连贯的笔迹流。
+Unlike cell-by-cell jumps, drawing order is represented as a pen-motion polyline.
+Interpolate adjacent positions and deposit ink continuously as the brush slides along the path.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 
 # ──────────────────────────────────────────────────────────────
-# 资源定位
+# Resource discovery
 # ──────────────────────────────────────────────────────────────
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _ASSETS_DIR = _SCRIPT_DIR.parent / "assets"
@@ -37,9 +37,9 @@ DEFAULT_HAND_PNG = _ASSETS_DIR / "drawing-hand.png"
 
 def _imread_any(path: str | Path, flags: int = cv2.IMREAD_COLOR) -> np.ndarray | None:
     """
-    读取图片，兼容含中文/空格等非 ASCII 字符的 Windows 路径。
-    先用 np.fromfile 读字节，再交给 cv2.imdecode 解码，
-    绕过 cv2.imread 对非 ASCII 路径的兼容性问题。
+    Read an image, including Windows paths with spaces or non-ASCII characters.
+    Read bytes with np.fromfile and decode with cv2.imdecode,
+    bypassing cv2.imread compatibility issues with non-ASCII paths.
     """
     raw = np.fromfile(str(path), dtype=np.uint8)
     if raw.size == 0:
@@ -48,59 +48,59 @@ def _imread_any(path: str | Path, flags: int = cv2.IMREAD_COLOR) -> np.ndarray |
 
 
 # ──────────────────────────────────────────────────────────────
-# 渲染参数集中处
+# Centralized rendering parameters
 # ──────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class Config:
-    fps: int = 60                  # 高频输出让笔尖移动更接近连续书写
-    grid_edge: int = 10            # 更小的网格减少线稿揭示的块状感
-    sample_step: int = 2           # 笔尖轨迹的像素采样间距
-    cap_long_edge: int = 1080      # 输入图长边上限
-    brush_radius: int = 40         # 添彩阶段圆形墨刷半径
-    ink_weight: int = 2            # 线稿段权重：为观察笔迹留出更多时间
-    color_weight: int = 1          # 添彩段权重
-    gaze_seconds: float = 3.0      # 凝视段基准秒数
-    ink_threshold: int = 10        # 像素灰度低于此值视为“墨迹”
-    ink_reveal_radius: int = 4     # 笔尖每段轨迹可揭示线稿的半径
-    target_hand_height: int = 493  # 手部素材缩放后的目标高度（按 1080p 调校）
-    # 笔尖在素材中的归一化坐标（0..1），决定落墨点对齐到素材的哪个像素。
-    # 内置 drawing-hand.png 裁剪后，笔尖落在图像左上角，故锚点取 (0, 0)。
-    # 这里描述的是真实落墨接触点，而非手部图像的外框。
+    fps: int = 60                  # Higher frame rate makes pen motion closer to continuous writing
+    grid_edge: int = 10            # Smaller grid reduces blockiness in ink reveals
+    sample_step: int = 2           # Pen trajectory sampling interval in pixels
+    cap_long_edge: int = 1080      # Maximum input image long edge
+    brush_radius: int = 40         # Circular brush radius for coloring
+    ink_weight: int = 2            # Ink-stage weight: allow more time to observe strokes
+    color_weight: int = 1          # Color-stage weight
+    gaze_seconds: float = 3.0      # Baseline finished-image hold duration in seconds
+    ink_threshold: int = 10        # Pixels below this grayscale value count as ink
+    ink_reveal_radius: int = 4     # Radius within which a pen segment reveals line art
+    target_hand_height: int = 493  # Scaled hand asset target height (tuned for 1080p)
+    # Normalized pen-tip coordinates in the asset (0..1) define the ink-contact pixel.
+    # The bundled drawing-hand.png is cropped with the tip at its top-left, so its anchor is (0, 0).
+    # This describes the actual ink-contact point, not the hand image bounding box.
     tip_anchor_x: float = 0.0
     tip_anchor_y: float = 0.0
-    canvas_hex: str = "#F6F1E3"    # 画布底色
-    match_bg: bool = True          # 把原图背景染成画布底色，使起笔/上色背景一致
-    match_bg_threshold: int = 28   # 与原图背景色差异小于此值视为背景（BGR 三通道和）
-    steps_per_frame: int = 4       # 每帧推进的落点数基准
-    # ── contour-wipe 上色模式专用 ──
-    color_fill: str = "contour-wipe"  # 上色风格: "contour-wipe" 轮廓感知自上而下扫描(默认) | "brush" 沿轨迹刷
-    wipe_decay: float = 0.86       # 阻力场逐行向下衰减系数（半衰期≈4.6px）
-    wipe_delay_ratio: float = 0.04  # 轮廓处前沿被扣减的像素比例（×h，钳制到[12,52]）
-    wipe_blocks: int = 18          # 笔尖横向来回扫动的趟数
-    # ── 起笔段自适应停顿（模拟"换笔呼吸"节奏）──
-    # pause_mode: "heavy" 明显停顿(默认)；"auto" 按内容密度自动分档；"off" 关闭停顿；"light" 少量
+    canvas_hex: str = "#F6F1E3"    # Canvas background color
+    match_bg: bool = True          # Match source background to canvas so ink and coloring backgrounds agree
+    match_bg_threshold: int = 28   # Pixels within this summed BGR-channel difference count as background
+    steps_per_frame: int = 4       # Baseline pen positions advanced per frame
+    # Contour-wipe coloring parameters
+    color_fill: str = "contour-wipe"  # Coloring: "contour-wipe" contour-aware top-down scan (default); "brush" follows strokes
+    wipe_decay: float = 0.86       # Downward row-to-row resistance decay (half-life about 4.6px)
+    wipe_delay_ratio: float = 0.04  # Frontier delay at contours as a fraction of h, clamped to [12,52]
+    wipe_blocks: int = 18          # Number of side-to-side pen sweeps
+    # Adaptive ink-stage pauses (simulate breathing and pen changes)
+    # pause_mode: "heavy" pronounced pauses (default); "auto" density-based; "off" disabled; "light" brief
     pause_mode: str = "heavy"
-    pause_ratio_heavy: float = 0.03   # 低密度(慢节奏)停顿比例：约 3% 帧用作停顿
-    pause_ratio_light: float = 0.008  # 中密度停顿比例：约 0.8%
-    # 密度分档阈值：用"每格帧数"(frames_per_cell) 衡量动画时长相对内容的富余度。
-    # >= heavy_fpc 有大段富余 → heavy 档(多停顿)；>= light_fpc 适中 → light 档；
-    # < light_fpc 内容密集、时长紧张 → 不停顿。
+    pause_ratio_heavy: float = 0.03   # Low-density slow pacing: about 3% of frames are pauses
+    pause_ratio_light: float = 0.008  # Medium-density pause fraction: about 0.8%
+    # Density thresholds use frames_per_cell to measure available time relative to content.
+    # >= heavy_fpc: ample time, heavy pauses; >= light_fpc: moderate, light pauses;
+    # < light_fpc: dense content, tight timing, no pauses.
     pause_heavy_fpc: float = 0.7
     pause_light_fpc: float = 0.4
-    # ── 笔迹路径模式 ──
-    # ink_path_mode: "grid" 网格格中心插值(默认) | "skeleton" 骨架级像素追踪
+    # Ink path modes
+    # ink_path_mode: "grid" interpolated cell centers (default); "skeleton" pixel-level skeleton tracing
     ink_path_mode: str = "grid"
-    skeleton_min_points: int = 8        # 骨架笔画最少点数（过滤碎片）
-    skeleton_resample_spacing: float = 2.5  # 骨架重采样间距（像素）
+    skeleton_min_points: int = 8        # Minimum points per skeleton stroke (fragment filter)
+    skeleton_resample_spacing: float = 2.5  # Skeleton resampling interval in pixels
 
 
 # ──────────────────────────────────────────────────────────────
-# 小工具
+# Utilities
 # ──────────────────────────────────────────────────────────────
 def _hex_to_bgr(hex_color: str) -> np.ndarray:
     digits = hex_color.lstrip("#")
     if len(digits) != 6:
-        raise ValueError(f"非法颜色值: {hex_color}")
+        raise ValueError(f"Invalid color value: {hex_color}")
     r = int(digits[0:2], 16)
     g = int(digits[2:4], 16)
     b = int(digits[4:6], 16)
@@ -115,14 +115,14 @@ def _bounding_box(mask: np.ndarray) -> tuple[tuple[int, int], tuple[int, int]]:
 
 
 # ──────────────────────────────────────────────────────────────
-# 墨迹格分块
+# Ink grid partitioning
 # ──────────────────────────────────────────────────────────────
 def _to_grid_blocks(image: np.ndarray, edge: int) -> np.ndarray:
-    """把 HxW（x C）图像切成 (行数, 列数, edge, edge[, C]) 的分块视图。"""
+    """Split an HxW (x C) image into a tiled view of (rows, columns, edge, edge[, C])."""
     image = np.ascontiguousarray(image)
     h, w = image.shape[:2]
     if h % edge or w % edge:
-        raise ValueError(f"图像尺寸 {w}x{h} 必须是 {edge} 的整数倍")
+        raise ValueError(f"Image dimensions {w}x{h} must be multiples of {edge}")
     rows, cols = h // edge, w // edge
     if image.ndim == 2:
         return image.reshape(rows, edge, cols, edge).transpose(0, 2, 1, 3)
@@ -130,18 +130,18 @@ def _to_grid_blocks(image: np.ndarray, edge: int) -> np.ndarray:
 
 
 def _active_mask(threshold_map: np.ndarray, edge: int, threshold: int) -> np.ndarray:
-    """哪些网格含墨迹：块内存在灰度低于阈值的像素即为真。"""
+    """Return cells containing ink, where any pixel in a cell is below the grayscale threshold."""
     blocks = _to_grid_blocks(threshold_map, edge)
     return np.any(blocks < threshold, axis=(2, 3))
 
 
 # ──────────────────────────────────────────────────────────────
-# 墨迹流聚类 + 密度梯度游走
+# Ink-stream clustering and density-guided traversal
 # ──────────────────────────────────────────────────────────────
 def _label_components(active: np.ndarray) -> tuple[np.ndarray, int]:
-    """对墨迹格做 8 连通连通域标记，返回 (标签图, 域数)。"""
+    """Label 8-connected ink-cell components; return (label map, component count)."""
     n, labels = cv2.connectedComponents(active.astype(np.uint8), connectivity=8)
-    return labels, n - 1  # 去掉背景标签 0
+    return labels, n - 1  # Exclude background label 0
 
 
 def _component_cells(labels: np.ndarray, label: int) -> list[tuple[int, int]]:
@@ -154,9 +154,9 @@ def _merge_small_components(
     merge_threshold: int,
 ) -> list[list[tuple[int, int]]]:
     """
-    把小连通域（格数 ≤ merge_threshold）合并到空间最近的大连通域。
-    避免大量 1-2 格的碎片穿插在大块文字之间，导致“画一块字没画完就跳走”。
-    若没有大连通域可并入，则保留原样（不丢弃任何墨迹）。
+    Merge small connected components (cell count <= merge_threshold) into the nearest large component.
+    This prevents tiny one- or two-cell fragments from interrupting large text regions.
+    If no large component exists, retain the originals without discarding ink.
     """
     if not components:
         return components
@@ -165,15 +165,15 @@ def _merge_small_components(
     if not small or not big:
         return components
 
-    # 预算每个大区域的质心
+    # Precompute the centroid of each large region
     centroids = []
     for cells in big:
         rs = [c[0] for c in cells]
         cs = [c[1] for c in cells]
         centroids.append((sum(rs) / len(rs), sum(cs) / len(cs)))
 
-    # 每个小碎片并入最近的大区域
-    merged = [list(cells) for cells in big]  # 拷贝，可追加
+    # Merge each small fragment into its nearest large region
+    merged = [list(cells) for cells in big]  # Make appendable copies
     for cells in small:
         rs = [c[0] for c in cells]
         cs = [c[1] for c in cells]
@@ -325,7 +325,7 @@ def classify_stroke_groups(
     # Split that weak connection before any region ordering is decided.
     components = _split_bridge_connected_components(components)
 
-    # 合并小碎片到最近的大区域，避免碎片打断大块文字的连续绘制
+    # Merge small fragments into the nearest large region to avoid interrupting continuous text drawing
     total_cells = sum(len(c) for c in components)
     merge_threshold = max(3, int(total_cells * 0.005))
     components = _merge_small_components(components, merge_threshold)
@@ -350,7 +350,7 @@ def classify_stroke_groups(
 
 
 def _density_seed(cells: Sequence[tuple[int, int]], radius: int = 2) -> tuple[int, int]:
-    """挑局部邻居最密的格子作为起笔点，模拟“从墨最浓处下笔”。"""
+    """Choose the cell with the densest local neighborhood as the starting point."""
     cell_set = set(cells)
     best = cells[0]
     best_score = -1
@@ -369,10 +369,10 @@ def _density_seed(cells: Sequence[tuple[int, int]], radius: int = 2) -> tuple[in
 
 def _gradient_walk(cells: Sequence[tuple[int, int]]) -> list[tuple[int, int]]:
     """
-    密度梯度引导的贪心游走：从密度最高的种子格出发，每步选择
-    “未访问邻居中局部密度最高、且与来向夹角最小”的格子，
-    形成“尽量沿着墨迹、少折返”的连续笔迹。
-    无邻居可达时跳到全局最近的未访问格继续。
+    Greedy density-guided traversal starts from the densest seed cell.
+    At each step select the unvisited neighbor with the highest local density and smallest direction change.
+    This follows the ink with minimal backtracking to form continuous strokes.
+    When no neighbor is reachable, jump to the nearest globally unvisited cell.
     """
     if not cells:
         return []
@@ -395,7 +395,7 @@ def _gradient_walk(cells: Sequence[tuple[int, int]]) -> list[tuple[int, int]]:
         ]
         if neighbors:
             def cost(cell: tuple[int, int]) -> tuple:
-                # 邻居越多越好（负号取最小）、方向变化越小越好、最后按位置稳定排序
+                # Prefer more neighbors (negative value), smaller direction change, then stable positional order
                 local = sum(
                     1
                     for dr in (-1, 0, 1)
@@ -409,7 +409,7 @@ def _gradient_walk(cells: Sequence[tuple[int, int]]) -> list[tuple[int, int]]:
 
             nxt = min(neighbors, key=cost)
         else:
-            # 断笔：跳到最近的未访问格
+            # Pen lift: jump to the nearest unvisited cell
             unvisited = [cell for cell in cells if cell not in visited]
             nxt = min(
                 unvisited,
@@ -431,7 +431,7 @@ def _gradient_walk(cells: Sequence[tuple[int, int]]) -> list[tuple[int, int]]:
 def _nearest_neighbor_order(
     cells: Sequence[tuple[int, int]], seed: tuple[int, int]
 ) -> list[tuple[int, int]]:
-    """从 seed 出发，每步走最近的未访问格，形成连续笔迹。"""
+    """Starting at seed, visit the nearest unvisited cell at every step to form continuous strokes."""
     if not cells:
         return []
     remaining = list(cells)
@@ -454,17 +454,17 @@ def _text_scan_order(
     cells: Sequence[tuple[int, int]], segment_cols: int = 4
 ) -> list[tuple[int, int]]:
     """
-    文字区域的专用画法：横向按段扫描，模拟写字。
-    把格子按列切成若干段（每段 segment_cols 列宽），段间按列从左到右；
-    段内用最近邻沿墨迹连续走（而非栅栏式逐行扫），避免“画过一块没画满、
-    跳到下一段又从顶部开始”的回头补笔感。
+    Text-specific drawing: scan horizontally in segments to simulate writing.
+    Divide cells into column segments of segment_cols width and process segments left to right.
+    Within each segment, follow ink continuously using nearest neighbors rather than row-by-row scanning.
+    This avoids leaving a segment incomplete and returning to its top later.
     """
     if not cells:
         return []
     if segment_cols < 1:
         segment_cols = 1
     left_col = min(col for _, col in cells)
-    # 按“起始列 // segment_cols”分桶，桶号小（靠左）的先画
+    # Bucket by starting column // segment_cols; draw leftmost buckets first
     buckets: dict[int, list[tuple[int, int]]] = {}
     for cell in cells:
         bucket_key = (cell[1] - left_col) // segment_cols
@@ -474,7 +474,7 @@ def _text_scan_order(
     prev_tail: tuple[int, int] | None = None
     for key in sorted(buckets):
         seg_cells = buckets[key]
-        # 段的起点：尽量靠近上一段出口，减少段间跳笔
+        # Start each segment near the previous exit to reduce pen jumps
         if prev_tail is not None:
             seed = min(
                 seg_cells,
@@ -492,7 +492,7 @@ def _text_scan_order(
 def _order_stream_by_kind(
     kind: str, cells: list[tuple[int, int]]
 ) -> list[tuple[int, int]]:
-    """按区域类型选画法：文字横向按段扫，主体/轮廓走密度游走。"""
+    """Select traversal by region type: segmented horizontal scan for text, density-guided for subject/contour."""
     if kind == "text":
         return _text_scan_order(cells)
     return _gradient_walk(cells)
@@ -532,10 +532,10 @@ def _chain_region_paths(
 
 def cluster_ink_streams(active: np.ndarray) -> list[list[tuple[int, int]]]:
     """
-    把墨迹格按语义聚成若干条墨流：主体(subject) → 文字(text) → 局部轮廓(contour)，
-    每条内部按类型选画法（文字按段扫、其余密度游走）；
-    墨流之间按“出口到入口最近邻”动态串联，必要时整条反向，减少跳笔。
-    返回的是已串联排序好的多条笔迹流。
+    Group ink cells semantically into streams: subject, text, then local contours.
+    Choose traversal by type: segmented scan for text, density-guided for others.
+    Chain streams by nearest exit-to-entry distance and reverse streams if needed to reduce pen jumps.
+    Return the ordered, chained stroke streams.
     """
     if not active.any():
         return []
@@ -549,21 +549,21 @@ def cluster_ink_streams(active: np.ndarray) -> list[list[tuple[int, int]]]:
     if not streams:
         return []
 
-    # 串联：主体（第一支）开局，之后每次挑入口离当前出口最近的墨流，
-    # 并视情况把该墨流整体反向，使其起点更靠近上一支的出口。
+    # Chain streams starting with the subject, then select the stream whose entrance is closest to the current exit.
+    # Reverse the whole stream when needed to bring its start closer to the previous exit.
     ordered: list[list[tuple[int, int]]] = []
     remaining = list(streams)
     tail: tuple[int, int] | None = None
     while remaining:
         if tail is None:
-            pick_idx = 0  # classify 已把主体排在最前
+            pick_idx = 0  # classify has already placed the subject first
         else:
             def dist_to_tail(stream: list[tuple[int, int]]) -> int:
                 head = stream[0]
                 return (head[0] - tail[0]) ** 2 + (head[1] - tail[1]) ** 2
             pick_idx = min(range(len(remaining)), key=lambda i: dist_to_tail(remaining[i]))
         pick = remaining.pop(pick_idx)
-        # 视情况反向：若尾离 pick 的终点比离起点更近，则反向
+        # Reverse if the current tail is closer to the candidate end than its start
         if tail is not None and len(pick) > 1:
             head = pick[0]
             end = pick[-1]
@@ -581,13 +581,13 @@ def flatten_streams(streams: list[list[tuple[int, int]]]) -> list[tuple[int, int
 
 
 # ──────────────────────────────────────────────────────────────
-# 笔尖 / 手部覆盖
+# Pen-tip and hand overlays
 # ──────────────────────────────────────────────────────────────
 def _load_hand(path: Path, target_h: int) -> tuple[np.ndarray, np.ndarray] | None:
     """
-    读入手部素材并按目标高度等比缩放。
-    优先用 alpha 通道做蒙版；无 alpha 时回退到“近白即背景”检测。
-    返回 (手部BGR, 归一化蒙版[0..1])，失败返回 None。
+    Read the hand asset and scale proportionally to the target height.
+    Prefer alpha masking; fall back to near-white background detection if alpha is absent.
+    Return (hand BGR, normalized mask [0..1]), or None on failure.
     """
     if not path.exists():
         return None
@@ -603,7 +603,7 @@ def _load_hand(path: Path, target_h: int) -> tuple[np.ndarray, np.ndarray] | Non
         gray = cv2.cvtColor(hand, cv2.COLOR_BGR2GRAY)
         _, mask = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY_INV)
 
-    # 裁到有效区
+    # Crop to the effective region
     (x0, y0), (x1, y1) = _bounding_box(mask)
     if x1 <= x0 or y1 <= y0:
         return None
@@ -617,38 +617,38 @@ def _load_hand(path: Path, target_h: int) -> tuple[np.ndarray, np.ndarray] | Non
     mask = cv2.resize(mask, (new_w, target_h), interpolation=interp)
     mask = mask.astype(np.float32) / 255.0
 
-    # 蒙版外区域置黑，便于后续按蒙版混合
+    # Set pixels outside the mask to black for subsequent masked blending
     hand[mask <= 0] = 0
     return hand, mask
 
 
 def _procedural_tip(target_h: int) -> tuple[np.ndarray, np.ndarray]:
     """
-    兜底笔尖：程序化画一支记号笔（笔杆渐变 + 圆头柔边 + 落影）。
-    不依赖任何外部图片，素材缺失时也能出图。
+    Fallback pen tip: procedurally draw a marker with barrel gradient, soft rounded tip, and shadow.
+    No external image is required; rendering still works when the asset is missing.
     """
     w = max(1, int(target_h * 0.34))
     h = target_h
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
 
-    # 落影：一条偏移的暗带，柔化后垫底
+    # Drop shadow: soften an offset dark strip beneath the pen
     shadow = np.zeros((h, w), dtype=np.uint8)
     cv2.rectangle(shadow, (3, int(h * 0.06)), (w - 2, int(h * 0.62)), 90, thickness=-1)
     shadow = cv2.GaussianBlur(shadow, (15, 15), 0)
     rgba[:, :, 3] = shadow
 
-    # 笔杆：从亮到暗的竖向渐变
+    # Pen barrel: vertical gradient from light to dark
     for y in range(h):
         t = y / max(1, h - 1)
         shade = int(220 - 130 * t)
         rgba[y, :, 0:3] = (shade, shade, shade + 10)
     cv2.rectangle(rgba, (4, int(h * 0.04)), (w - 4, int(h * 0.58)), (0, 0, 0), thickness=1)
 
-    # 圆头笔尖（暖色，模拟油墨）
+    # Rounded pen tip, warm ink color
     tip_cy = int(h * 0.70)
     cv2.circle(rgba, (w // 2, tip_cy), max(3, w // 4), (70, 90, 230), thickness=-1)
 
-    # 用圆头 + 笔杆外轮廓合成 alpha 蒙版
+    # Build the alpha mask from the rounded tip and barrel contour
     body_mask = np.zeros((h, w), dtype=np.uint8)
     cv2.rectangle(body_mask, (3, int(h * 0.04)), (w - 3, tip_cy), 255, thickness=-1)
     cv2.circle(body_mask, (w // 2, tip_cy), max(3, w // 4), 255, thickness=-1)
@@ -661,7 +661,7 @@ def _procedural_tip(target_h: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 class TipOverlay:
-    """把笔尖/手部贴到画布上，让指定的“笔尖锚点”对齐落墨点，带 alpha 混合。"""
+    """Alpha-blend the pen/hand onto the canvas with its specified tip anchor aligned to the ink point."""
 
     def __init__(
         self,
@@ -674,14 +674,14 @@ class TipOverlay:
         self.mask = mask
         self.h, self.w = hand.shape[:2]
         self.mask_inv = 1.0 - mask
-        # 笔尖在素材中的像素坐标（落墨点要与之对齐）
+        # Pixel coordinates of the asset pen tip (align the ink point here)
         # Map normalized anchors exactly onto the source image's pixel range.
         self.tip_px = int(round((self.w - 1) * np.clip(tip_anchor_x, 0.0, 1.0)))
         self.tip_py = int(round((self.h - 1) * np.clip(tip_anchor_y, 0.0, 1.0)))
 
     def stamp(self, canvas: np.ndarray, x: int, y: int) -> np.ndarray:
-        """让素材的笔尖锚点对齐到画布坐标 (x, y)（即落墨点）。"""
-        # 素材左上角 = 落墨点 - 笔尖偏移
+        """Align the asset tip anchor to canvas coordinates (x, y), the ink-contact point."""
+        # Asset top-left = ink point minus tip offset
         anchor_x = x - self.tip_px
         anchor_y = y - self.tip_py
         h_canvas, w_canvas = canvas.shape[:2]
@@ -712,27 +712,27 @@ class TipOverlay:
 
 
 # ──────────────────────────────────────────────────────────────
-# 墨刷
+# Ink brush
 # ──────────────────────────────────────────────────────────────
 def _feathered_disk(radius: int) -> np.ndarray:
-    """生成半径 r、边缘高斯羽化的圆形蒙版，值域 0..1。"""
+    """Create a circular mask of radius r with Gaussian-feathered edges and values from 0 to 1."""
     y, x = np.ogrid[-radius:radius + 1, -radius:radius + 1]
     dist = np.sqrt(x * x + y * y).astype(np.float32)
     return np.clip(1.0 - (dist - radius * 0.75) / (radius * 0.25), 0.0, 1.0)
 
 
 # ──────────────────────────────────────────────────────────────
-# contour-wipe 上色工具
+# Contour-wipe coloring utilities
 # ──────────────────────────────────────────────────────────────
 def _ease_in_out_sine(t: float | np.ndarray) -> float | np.ndarray:
-    """正弦缓动：起止慢、中间快。输入标量或数组，输出同形。"""
+    """Sine easing: slow at both ends, fast in the middle; accepts a scalar or array and preserves shape."""
     return -(np.cos(np.pi * t) - 1.0) / 2.0
 
 
 def _build_wipe_wave(width: int) -> np.ndarray:
     """
-    预计算双频正弦波边界，让揭示前沿不是平直线而是水波起伏。
-    返回 (W,) float32 数组，值域大致 [-1.35, 1.35]。
+    Precompute a dual-frequency sine boundary so the reveal frontier undulates like water.
+    Return a float32 array of shape (W,), approximately in [-1.35, 1.35].
     """
     wave_px1 = max(24.0, width / 20.0)
     wave_px2 = max(8.0, width / 72.0)
@@ -741,8 +741,8 @@ def _build_wipe_wave(width: int) -> np.ndarray:
 
 
 # ──────────────────────────────────────────────────────────────
-# 骨架级笔画追踪（移植自 whiteboard-video-engine preprocess.py）
-# Zhang-Suen 细化 → 8邻接最直边追踪 → 像素级有序笔画
+# Skeleton-level stroke tracing (adapted from whiteboard-video-engine preprocess.py)
+# Zhang-Suen thinning → straightest 8-neighbor edge tracing → ordered pixel strokes
 # ──────────────────────────────────────────────────────────────
 _SKEL_NEIGHBORS_8 = [
     (-1, -1), (0, -1), (1, -1),
@@ -753,9 +753,9 @@ _SKEL_NEIGHBORS_8 = [
 
 def _zhang_suen_skeleton(mask: np.ndarray, max_iterations: int = 160) -> np.ndarray:
     """
-    Zhang-Suen 两子迭代细化，把二值前景掩码细化到 1px 宽骨架。
-    输入：bool/uint8 二维数组（True/1 = 前景笔迹）。
-    输出：bool 骨架图，同形。
+    Zhang-Suen two-subiteration thinning reduces a binary foreground mask to a one-pixel skeleton.
+    Input: two-dimensional bool/uint8 array, True/1 denotes foreground ink.
+    Output: boolean skeleton of the same shape.
     """
     img = np.pad(mask.astype(np.uint8), 1, mode="constant")
     for _ in range(max_iterations):
@@ -766,7 +766,7 @@ def _zhang_suen_skeleton(mask: np.ndarray, max_iterations: int = 160) -> np.ndar
             p8, p9 = img[1:-1, :-2], img[:-2, :-2]
             center = img[1:-1, 1:-1]
             neighbors = [p2, p3, p4, p5, p6, p7, p8, p9]
-            # 0→1 转换数（顺时针环绕）
+            # Count clockwise 0-to-1 transitions
             transitions = sum(
                 (neighbors[i] == 0) & (neighbors[(i + 1) % 8] == 1) for i in range(8)
             )
@@ -793,9 +793,9 @@ def _zhang_suen_skeleton(mask: np.ndarray, max_iterations: int = 160) -> np.ndar
 
 def _skel_neighbors(skel: np.ndarray, point: tuple[int, int]) -> list[tuple[int, int]]:
     """
-    返回骨架点 point 的有效 8 邻接邻居。
-    关键：当对角邻居与当前点之间已有正交桥时，跳过该对角邻居，
-    避免 T 型/十字交叉处的三角形碎笔画，同时保留真正的纯对角中心线。
+    Return valid 8-connected neighbors of a skeleton point.
+    Skip a diagonal neighbor when an orthogonal bridge already connects it to the current point.
+    This avoids triangular fragments at T/cross intersections while preserving genuine diagonal centerlines.
     """
     x, y = point
     h, w = skel.shape
@@ -805,13 +805,13 @@ def _skel_neighbors(skel: np.ndarray, point: tuple[int, int]) -> list[tuple[int,
         if not (0 <= nx < w and 0 <= ny < h and skel[ny, nx]):
             continue
         if dx != 0 and dy != 0 and (skel[y, nx] or skel[ny, x]):
-            continue  # 正交桥已连接，跳过冗余对角
+            continue  # Orthogonal bridge exists; skip the redundant diagonal
         result.append((nx, ny))
     return result
 
 
 def _edge_key(a: tuple[int, int], b: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, int]]:
-    """无向边规范化：(A,B) 和 (B,A) 映射到同一个 key。"""
+    """Normalize undirected edges so (A,B) and (B,A) map to the same key."""
     return (a, b) if a <= b else (b, a)
 
 
@@ -822,8 +822,8 @@ def _choose_next(
     visited_edges: set,
 ) -> tuple[int, int] | None:
     """
-    在交叉点选择"最直的未访问边"继续走。
-    用当前行进方向与候选方向的余弦相似度衡量"直度"，取最大值。
+    Continue along the straightest unvisited edge at an intersection.
+    Maximize cosine similarity between the current and candidate directions.
     """
     fresh = [p for p in candidates if _edge_key(cur, p) not in visited_edges and p != prev]
     if not fresh:
@@ -841,15 +841,15 @@ def _choose_next(
 
 def trace_8connected(skel: np.ndarray, min_points: int = 8) -> list[list[tuple[int, int]]]:
     """
-    把 1px 骨架追踪成有序笔画序列。
+    Trace a one-pixel skeleton into ordered strokes.
 
-    - 起点优先级：度=1 的端点 → 度>2 的交叉点 → 其他
-    - 交叉点处沿最直的未访问边继续走（而非每分支断成短笔画）
-    - 用无向边集合标记访问（像素可复用，边不可重复走）
-    - 死胡同（无 fresh 边）即停，剩余分支由后续起点补上
-    - 长度 < min_points 的碎片丢弃
+    - Starting priority: degree-1 endpoints, degree>2 intersections, then others.
+    - At intersections follow the straightest unvisited edge rather than splitting each branch into short strokes.
+    - Track visited undirected edges; pixels can recur, but edges cannot.
+    - Stop at a dead end with no fresh edge; later starts cover remaining branches.
+    - Discard fragments shorter than min_points.
 
-    返回 list[list[(x,y)]]，每条是沿笔画方向的有序像素坐标。
+    Return list[list[(x,y)]] with ordered pixel coordinates along each stroke.
     """
     ys, xs = np.nonzero(skel)
     points = [(int(x), int(y)) for x, y in zip(xs, ys)]
@@ -883,9 +883,9 @@ def trace_8connected(skel: np.ndarray, min_points: int = 8) -> list[list[tuple[i
     return strokes
 
 
-# ── 骨架笔画后处理（重采样 + 平滑 + 排序）──
+# Skeleton post-processing: resampling, smoothing, ordering
 def _stroke_cumulative_length(points: list[tuple[float, float]]) -> list[float]:
-    """每个点的累计弧长 [0, d01, d012, ...]。"""
+    """Cumulative arc length at each point: [0, d01, d012, ...]."""
     cum = [0.0]
     for a, b in zip(points, points[1:]):
         cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
@@ -895,7 +895,7 @@ def _stroke_cumulative_length(points: list[tuple[float, float]]) -> list[float]:
 def _resample_stroke_points(
     points: list[tuple[float, float]], spacing: float
 ) -> list[tuple[float, float]]:
-    """沿弧长按 spacing 等距重采样，去像素锯齿。"""
+    """Resample at equal arc-length intervals of spacing to reduce pixel jaggies."""
     if len(points) < 2:
         return list(points)
     cum = _stroke_cumulative_length(points)
@@ -906,7 +906,7 @@ def _resample_stroke_points(
     result: list[tuple[float, float]] = []
     for i in range(n + 1):
         target = total * i / n
-        # 二分定位
+        # Binary search for position
         lo, hi = 0, len(cum) - 1
         while lo < hi:
             mid = (lo + hi) // 2
@@ -929,7 +929,7 @@ def _resample_stroke_points(
 def _chaikin_smooth(
     points: list[tuple[float, float]], iterations: int = 1
 ) -> list[tuple[float, float]]:
-    """Chaikin 切角平滑：每段用 0.25/0.75 两点替换，起止点保留。"""
+    """Chaikin corner-cutting: replace each segment with points at 0.25/0.75, preserving endpoints."""
     pts = list(points)
     for _ in range(iterations):
         if len(pts) < 3:
@@ -945,8 +945,8 @@ def _chaikin_smooth(
 
 def _order_skeleton_strokes(strokes: list[list[tuple[float, float]]]) -> list[list[tuple[float, float]]]:
     """
-    笔画排序：从上到下、从左到右，长笔优先。
-    简化版①order_strokes——用包围盒左上角 + 负长度做字典序。
+    Order strokes top to bottom, then left to right, preferring longer strokes.
+    Simplified order_strokes uses lexicographic bounding-box top-left and negative length.
     """
     def sort_key(s):
         if not s:
@@ -959,7 +959,7 @@ def _order_skeleton_strokes(strokes: list[list[tuple[float, float]]]) -> list[li
 
 
 # ──────────────────────────────────────────────────────────────
-# 时长 / 段落切分
+# Duration and stage splitting
 # ──────────────────────────────────────────────────────────────
 @dataclass
 class PhasePlan:
@@ -971,9 +971,9 @@ class PhasePlan:
 
 def plan_phases(total_ms: int, cfg: Config) -> PhasePlan:
     """
-    把总时长切成 起笔/添彩/凝视 三段。
-    凝视段先用基准秒数占位，剩余时长按权重分给起笔与添彩；
-    若剩余无法被权重和整除，余数补给凝视段，避免精度丢失。
+    Split total duration into ink, color, and finished-image hold.
+    Reserve baseline hold seconds, then distribute the remaining time by ink/color weights.
+    Assign integer-division remainder to the hold to avoid lost precision.
     """
     weight_sum = cfg.ink_weight + cfg.color_weight
     gaze_ms = int(cfg.gaze_seconds * 1000)
@@ -992,10 +992,10 @@ def plan_phases(total_ms: int, cfg: Config) -> PhasePlan:
 
 
 # ──────────────────────────────────────────────────────────────
-# 渲染器主体
+# Renderer implementation
 # ──────────────────────────────────────────────────────────────
 class StreamBoardRenderer:
-    """持有单次渲染的全部状态，方法挂在实例上。"""
+    """Keep all state for one render on a single instance."""
 
     def __init__(
         self,
@@ -1007,7 +1007,7 @@ class StreamBoardRenderer:
         self.cfg = cfg
         self.canvas_bgr = _hex_to_bgr(cfg.canvas_hex)
 
-        # 计算输出尺寸：长边限到 cap，并对齐到 grid_edge 的偶数倍（编码要求偶数）
+        # Limit long edge to cap and align to an even multiple of grid_edge for encoding
         h0, w0 = image_bgr.shape[:2]
         scale = cfg.cap_long_edge / max(h0, w0)
         w = int(round(w0 * scale))
@@ -1028,32 +1028,32 @@ class StreamBoardRenderer:
         self.ink_pixels = self.thresh_map < cfg.ink_threshold
         self.ink_paint = np.repeat(self.thresh_map[:, :, None], 3, axis=2).astype(np.float32)
 
-        # 把原图背景染成画布底色（仅影响 color_img，不碰 ink_pixels / ink_paint）。
-        # 这样上色/凝视阶段的背景与起笔(线稿)阶段一致，避免背景色突兀跳变。
-        # 放在 ink_pixels 算完之后，线稿质量完全不受影响。
+        # Match source background to canvas; affects only color_img, not ink_pixels or ink_paint.
+        # This keeps coloring and finished-hold backgrounds consistent with the ink stage.
+        # Run after ink_pixels is calculated so line-art quality is unaffected.
         if cfg.match_bg:
             self._match_original_background()
 
-        # 格空间聚类（grid 模式的笔迹路径 + contour-wipe 阻力场仍需要）
+        # Grid-space clustering (needed by grid paths and the contour-wipe resistance field)
         self.ink_streams = cluster_ink_streams(self.active)
 
-        # 笔迹路径：按 ink_path_mode 选择 grid（格中心插值）或 skeleton（骨架追踪）
+        # Choose grid cell-center interpolation or skeleton tracing according to ink_path_mode
         if cfg.ink_path_mode == "skeleton":
             self.skeleton_strokes = self._build_skeleton_path()
             if self.skeleton_strokes:
                 self.stroke_path = [pt for stroke in self.skeleton_strokes for pt in stroke]
             else:
-                # 骨架追踪无笔画：真正退回格中心路径，而非留一条空 path
+                # No skeleton strokes: actually fall back to cell-center paths, not an empty path
                 self.stroke_path = flatten_streams(self.ink_streams)
         else:
             self.skeleton_strokes = []
             self.stroke_path = flatten_streams(self.ink_streams)
 
-        # 画布（用浮点缓存，便于墨刷累加混合）
+        # Floating-point canvas buffer for accumulating blended brush marks
         self.drawn = np.zeros((self.out_h, self.out_w, 3), dtype=np.float32)
         self.drawn[...] = self.canvas_bgr.astype(np.float32)
 
-        # 笔尖覆盖
+        # Pen overlay
         self.tip: TipOverlay | None = None
         if not bare_tip:
             hand_data = _load_hand(hand_png, cfg.target_hand_height) if hand_png else None
@@ -1069,12 +1069,12 @@ class StreamBoardRenderer:
                 tip_anchor_y=tip_anchor_y,
             )
 
-    # ── 把原图背景染成画布底色（仅影响 color_img，不碰线稿墨迹）──
+    # Match source background to canvas (color_img only; preserve ink)
     def _match_original_background(self) -> None:
         """
-        采样原图四角作为背景色基准，把与其差异 < 阈值的像素替换为 canvas_hex。
-        使上色/凝视阶段的背景与起笔(线稿)阶段一致，避免背景色突兀跳变。
-        彩色内容（与背景差异大）保留原色不受影响。
+        Sample the source corners as background reference and replace pixels below the difference threshold with canvas_hex.
+        Keep coloring and finished-hold backgrounds consistent with ink to avoid sudden color changes.
+        Preserve original colors where content differs significantly from the background.
         """
         img = self.color_img
         h, w = img.shape[:2]
@@ -1088,24 +1088,24 @@ class StreamBoardRenderer:
         bg_mask = diff < self.cfg.match_bg_threshold
         img[bg_mask] = self.canvas_bgr
 
-    # ── 笔迹中心点（像素坐标）──
+    # Stroke center points in pixel coordinates
     def _cell_center(self, cell: tuple[int, int]) -> tuple[int, int]:
         r, c = cell
         e = self.cfg.grid_edge
         return (c * e + e // 2, r * e + e // 2)  # (x, y)
 
-    # ── 骨架级笔迹路径（Zhang-Suen 细化 + 8邻接最直边追踪）──
+    # Skeleton stroke paths: Zhang-Suen thinning plus straightest 8-neighbor edge tracing
     def _build_skeleton_path(self) -> list[list[tuple[int, int]]]:
         """
-        用骨架追踪生成像素级有序笔画序列，替代网格格中心插值。
-        笔尖走真实骨架，比网格中心更贴合原图线条；
-        交叉点处沿最直边继续走，避免三角碎笔画。
+        Generate ordered pixel-level strokes by skeleton tracing instead of interpolated grid centers.
+        The pen follows the real skeleton and more closely matches source lines.
+        At intersections follow the straightest edge to avoid triangular fragments.
         """
         cfg = self.cfg
         skel = _zhang_suen_skeleton(self.ink_pixels, max_iterations=160)
         raw_strokes = trace_8connected(skel, min_points=cfg.skeleton_min_points)
         if not raw_strokes:
-            print("  [warn] 骨架追踪无笔画，回退到格中心路径")
+            print("  [warn] No skeleton strokes; falling back to cell-center paths")
             return []
 
         spacing = cfg.skeleton_resample_spacing
@@ -1120,16 +1120,16 @@ class StreamBoardRenderer:
 
         processed = _order_skeleton_strokes(processed)
         total_pts = sum(len(s) for s in processed)
-        print(f"  骨架追踪: {len(processed)} 条笔画, {total_pts} 个采样点")
+        print(f"  Skeleton tracing: {len(processed)} strokes, {total_pts} samples")
         return processed
 
-    # ── contour-wipe 阻力场（懒构建，整个上色阶段复用）──
+    # Lazy contour-wipe resistance field, reused throughout coloring
     def _build_resistance_field(self) -> np.ndarray:
         """
-        用线稿墨迹构建"阻力场"：轮廓处阻力≈1，向下方逐行按 decay 指数衰减。
-        揭示前沿遇高阻力被扣减像素数，从而"先卡在轮廓上、再缓慢越过"。
+        Build a resistance field from ink: resistance is about 1 at contours and decays exponentially downward by decay.
+        High resistance subtracts pixels from the reveal frontier, briefly holding at contours before crossing.
 
-        阻力场全程静态，与上色进度无关，故只算一次缓存到 self._resistance。
+        Resistance is static and independent of coloring progress, so cache it once in self._resistance.
         """
         if getattr(self, "_resistance", None) is not None:
             return self._resistance
@@ -1137,31 +1137,31 @@ class StreamBoardRenderer:
         h, w = self.out_h, self.out_w
         cfg = self.cfg
 
-        # 1) 墨线二值图（uint8 0/255）
+        # 1) Binary ink image (uint8 0/255)
         ink_u8 = (self.ink_pixels.astype(np.uint8)) * 255
 
-        # 2) 膨胀：圆形结构元让轮廓变粗、形成阻挡带
+        # 2) Dilate with a circular kernel to thicken contours into barriers
         spread = int(np.clip(min(w, h) // 64, 3, 17))
-        if spread % 2 == 0:  # 结构元半径需为正奇数
+        if spread % 2 == 0:  # Kernel size must be positive and odd
             spread = max(3, spread - 1)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (spread, spread))
         dilated = cv2.dilate(ink_u8, kernel, iterations=1)
 
-        # 3) 高斯模糊：把硬边变成渐变带（半径需为正奇数）
+        # 3) Gaussian blur converts hard edges to a gradient (positive odd kernel)
         blur_r = max(1, int(round(min(w, h) / 220.0)))
         if blur_r % 2 == 0:
             blur_r += 1
         resistance = cv2.GaussianBlur(dilated, (blur_r, blur_r), 0).astype(np.float32)
 
-        # 4) 归一化到 [0,1]
+        # 4) Normalize to [0,1]
         peak = float(resistance.max())
         if peak > 1e-6:
             resistance /= peak
         else:
-            # 无墨线（全白图）：阻力场恒 0，contour-wipe 退化为平直扫描
+            # No ink (white image): resistance is zero, so contour-wipe becomes a straight scan
             resistance = np.zeros((h, w), dtype=np.float32)
 
-        # 5) 逐行向下因果传播 decay：让每条轮廓向下方投出指数衰减阴影
+        # 5) Causal downward row decay: contours cast an exponentially decaying shadow
         decay = cfg.wipe_decay
         for row in range(1, h):
             resistance[row] = np.maximum(resistance[row], resistance[row - 1] * decay)
@@ -1169,7 +1169,7 @@ class StreamBoardRenderer:
         self._resistance = resistance
         return resistance
 
-    # ── 在落点铺一“墨点”：线稿阶段铺阈值图，添彩阶段铺原色 ──
+    # Stamp ink at each point: threshold image for ink stage, original color for coloring
     def _reveal_ink_segment(
         self, start: tuple[int, int], end: tuple[int, int]
     ) -> None:
@@ -1185,7 +1185,7 @@ class StreamBoardRenderer:
         e = self.cfg.grid_edge
         block = self.grid_blocks[r, c]
         ink_region = block < self.cfg.ink_threshold
-        # 阈值图是单通道，复制到三通道画布
+        # Threshold image is single-channel; replicate to the three-channel canvas
         paint = np.repeat(block[:, :, None], 3, axis=2)
         target = self.drawn[r * e:r * e + e, c * e:c * e + e]
         target[ink_region] = paint[ink_region]
@@ -1206,9 +1206,9 @@ class StreamBoardRenderer:
         for ch in range(3):
             target[:, :, ch] = target[:, :, ch] * inv + source[:, :, ch] * m
 
-    # ── 把当前画布快照（含笔尖）写若干帧 ──
+    # Write current canvas snapshot with pen for the specified frames
     def _snapshot_with_tip(self, px: int, py: int) -> np.ndarray:
-        snap = self.drawn.astype(np.uint8)  # astype 已返回新数组，无需再 copy
+        snap = self.drawn.astype(np.uint8)  # astype returns a new array; no extra copy needed
         if self.tip is not None:
             self.tip.stamp(snap, px, py)
         return snap
@@ -1217,14 +1217,14 @@ class StreamBoardRenderer:
         self, path: list[tuple[int, int]]
     ) -> tuple[list[tuple[int, int]], set[int], list[int]]:
         """
-        把笔迹折线插值成连续的笔尖像素坐标序列。
-        相邻格中心之间按 sample_step 像素均匀采样，形成连贯的滑动轨迹。
+        Interpolate the stroke polyline into a continuous sequence of pixel pen positions.
+        Sample uniformly every sample_step pixels between neighboring cell centers for smooth motion.
 
-        返回 (samples, pen_lifts, sample_cell_index)：
-          samples         —— 笔尖像素坐标列表
-          pen_lifts       —— “抬笔”采样点索引集合（非相邻格切换处）
-          sample_cell_index —— 每个采样点归属的 cell 在 path 中的索引，
-                              用于让“揭墨进度”与“笔尖位置”严格同步。
+        Return (samples, pen_lifts, sample_cell_index):
+          samples: list of pen-tip pixel coordinates.
+          pen_lifts: sample indices requiring a pen lift between nonadjacent cells.
+          sample_cell_index: index in path of the cell belonging to each sample,
+                              used to synchronize ink-reveal progress precisely with pen position.
         """
         samples: list[tuple[int, int]] = []
         pen_lifts: set[int] = set()
@@ -1256,10 +1256,10 @@ class StreamBoardRenderer:
 
     def _frame_progress_indices(self, n_steps: int, target_frames: int) -> list[int]:
         """
-        给定 n_steps 个笔尖位置和 target_frames 个目标帧，
-        返回每个目标帧应取的笔尖位置索引（均匀映射，覆盖完整轨迹）。
-        target_frames <= n_steps 时是下采样，> 时是重复采样。
-        target_frames <= 0（如总时长≤凝视段导致本段无帧）时返回空，不产生任何帧。
+        Given n_steps pen positions and target_frames output frames,
+        return the position index for each target frame using uniform mapping over the full trajectory.
+        target_frames <= n_steps downsamples; larger values repeat samples.
+        If target_frames <= 0 (for example total duration consumed by the hold), return no frames.
         """
         if n_steps == 0 or target_frames <= 0:
             return []
@@ -1274,14 +1274,14 @@ class StreamBoardRenderer:
         self, target_frames: int, n_cells: int
     ) -> set[int]:
         """
-        自适应停顿：按内容密度分档决定停顿比例，再把停顿帧均匀分布在时间轴上。
-        返回"需要冻结（重复上一帧进度）"的帧索引集合。
+        Adaptive pauses choose a fraction by density and distribute paused frames evenly along the timeline.
+        Return indices of frames that must repeat the previous frame's progress.
 
-        分档指标用"每格帧数" frames_per_cell = target_frames / n_cells：
-        帧比格多得多（值大）说明动画时长相对内容有富余 → 多停顿模拟换笔呼吸；
-        帧比格少（值小）说明内容密集、时长紧张 → 不停顿。
+        The density measure is frames_per_cell = target_frames / n_cells.
+        Many more frames than cells means ample time: add pauses to simulate natural pen changes.
+        Few frames per cell means dense content and tight timing: omit pauses.
 
-        pause_mode 可强制覆盖："off" 关闭、"light"/"heavy" 固定档、"auto" 自动。
+        pause_mode overrides the tier: "off", fixed "light"/"heavy", or automatic "auto".
         """
         mode = self.cfg.pause_mode
         if mode == "off" or target_frames < 8 or n_cells <= 0:
@@ -1291,16 +1291,16 @@ class StreamBoardRenderer:
             ratio = self.cfg.pause_ratio_light
         elif mode == "heavy":
             ratio = self.cfg.pause_ratio_heavy
-        else:  # auto：按"每格帧数"自动分档
+        else:  # auto: choose pause tier by frames per cell
             fpc = target_frames / n_cells
             if fpc >= self.cfg.pause_heavy_fpc:
                 ratio = self.cfg.pause_ratio_heavy
             elif fpc >= self.cfg.pause_light_fpc:
                 ratio = self.cfg.pause_ratio_light
             else:
-                return set()  # 内容密集：快节奏，不停顿
+                return set()  # Dense content: fast pace, no pauses
 
-        # 停顿帧数量，至少为 0；夹到 target_frames-2 避免首尾帧停顿
+        # Clamp pause count to at least zero and at most target_frames-2 to avoid first/last-frame pauses
         pause_count = min(
             max(0, int(round(target_frames * ratio))),
             max(0, target_frames - 2),
@@ -1308,27 +1308,27 @@ class StreamBoardRenderer:
         if pause_count <= 0:
             return set()
 
-        # 等分插入：把 target_frames 分成 pause_count+1 等份，停顿落在内部分点上
-        # 不用首尾(1/(n+1) 的分子从 1 起)，保证开头结尾不打断
+        # Divide target_frames into pause_count+1 equal intervals and pause at interior boundaries
+        # Exclude endpoints to preserve uninterrupted beginning and ending
         return {
             max(1, min(target_frames - 2,
                        round((idx + 1) * target_frames / (pause_count + 1))))
             for idx in range(pause_count)
         }
 
-    # ── 起笔段：沿 stroke_path 铺线稿，笔尖滑动且与揭墨严格同步 ──
+    # Ink stage: trace stroke_path with pen motion synchronized to ink reveal
     def lay_down_ink(self, writer: cv2.VideoWriter, target_frames: int) -> None:
-        """起笔段入口：按 ink_path_mode 分发到骨架追踪或网格格路径。"""
+        """Dispatch the ink stage to skeleton tracing or grid-cell paths according to ink_path_mode."""
         if self.cfg.ink_path_mode == "skeleton" and self.skeleton_strokes:
             return self._lay_down_ink_skeleton(writer, target_frames)
         return self._lay_down_ink_grid(writer, target_frames)
 
-    # ── grid 模式：沿网格格中心插值路径揭墨（原逻辑）──
+    # Grid mode: reveal ink along interpolated cell-center paths (original method)
     def _lay_down_ink_grid(self, writer: cv2.VideoWriter, target_frames: int) -> None:
         path = self.stroke_path
         n = len(path)
         if n == 0:
-            print("  无墨迹，跳过起笔段")
+            print("  No ink; skipping ink stage")
             for _ in range(target_frames):
                 writer.write(self._snapshot_with_tip(self.out_w // 2, self.out_h // 2))
             return
@@ -1336,26 +1336,26 @@ class StreamBoardRenderer:
         samples, pen_lifts, sample_cell_index = self._build_stroke_samples(path)
         sample_idx_for_frame = self._frame_progress_indices(len(samples), target_frames)
 
-        # 自适应停顿：按密度分档选出"冻结帧"（笔尖不动、揭墨不推进），
-        # 模拟真人书写时的换笔/呼吸节奏。
+        # Adaptive pauses select frozen frames based on density; pen and ink reveal stop.
+        # This simulates natural pen changes and breathing.
         pause_frames = self._pause_frame_indices(target_frames, n)
         if pause_frames:
-            print(f"  自适应停顿: {len(pause_frames)} 帧冻结 (模式={self.cfg.pause_mode})")
+            print(f"  Adaptive pauses: {len(pause_frames)} frozen frames (mode={self.cfg.pause_mode})")
 
         written = 0
-        cells_revealed = 0  # 已整块揭示的格数（增量，严格跟随笔尖进度）
+        cells_revealed = 0  # Fully revealed cell count, incremented in step with pen progress
         last_sample_idx: int | None = None
         for fi, si in enumerate(sample_idx_for_frame):
-            # 停顿帧：复用上一帧的笔尖位置与进度，不揭墨，只写一帧快照（笔尖冻结）
+            # Pause frame: reuse previous pen position and progress; write a snapshot without revealing ink
             if fi in pause_frames and last_sample_idx is not None:
                 sx, sy = samples[last_sample_idx]
                 writer.write(self._snapshot_with_tip(sx, sy))
                 written += 1
                 if (fi + 1) % max(1, target_frames // 10) == 0:
-                    print(f"  起笔进度: {int((fi + 1) / target_frames * 100)}%")
+                    print(f"  Ink progress: {int((fi + 1) / target_frames * 100)}%")
                 continue
 
-            # 笔尖沿线揭示（保留笔迹流动感）
+            # Reveal along the pen path to preserve flowing strokes
             if last_sample_idx is None:
                 self._reveal_ink_segment(samples[si], samples[si])
             else:
@@ -1366,8 +1366,8 @@ class StreamBoardRenderer:
                         samples[sample_idx - 1], samples[sample_idx]
                     )
 
-            # 整块揭示：严格揭到"当前笔尖所在 cell"，保证笔尖与画同步、文字完整。
-            # sample_cell_index[si] 是当前帧笔尖归属的格索引，揭到它为止。
+            # Reveal full cells only through the current pen cell to synchronize drawing and preserve text.
+            # sample_cell_index[si] identifies the current frame's pen cell; reveal through that cell.
             target_cell = sample_cell_index[si]
             while cells_revealed <= target_cell and cells_revealed < n:
                 self._ink_stamp(path[cells_revealed])
@@ -1378,9 +1378,9 @@ class StreamBoardRenderer:
             written += 1
             last_sample_idx = si
             if (fi + 1) % max(1, target_frames // 10) == 0:
-                print(f"  起笔进度: {int((fi + 1) / target_frames * 100)}%")
+                print(f"  Ink progress: {int((fi + 1) / target_frames * 100)}%")
 
-        # 收尾兜底：确保所有格墨迹揭示完整，并补齐帧数
+        # Finalize: reveal all grid ink and fill remaining frames
         while cells_revealed < n:
             self._ink_stamp(path[cells_revealed])
             cells_revealed += 1
@@ -1388,55 +1388,55 @@ class StreamBoardRenderer:
         while written < target_frames:
             writer.write(self._snapshot_with_tip(*last))
             written += 1
-        print(f"  起笔完成: {n} 格, {written} 帧")
+        print(f"  Ink complete: {n} cells, {written} frames")
 
-    # ── skeleton 模式：沿骨架像素路径揭墨（笔尖走真实骨架）──
+    # Skeleton mode: reveal ink along the actual skeleton pixel path
     def _lay_down_ink_skeleton(self, writer: cv2.VideoWriter, target_frames: int) -> None:
         """
-        骨架模式起笔：笔尖沿骨架像素点滑动，用 _reveal_ink_segment 揭原图墨迹。
-        不做整块揭示（_ink_stamp），因为骨架已精确到像素，无需保证格完整。
-        跨笔画处标记抬笔（pen_lifts），跳过插值。
+        In skeleton mode, slide along skeleton pixels and reveal source ink using _reveal_ink_segment.
+        Do not reveal full blocks (_ink_stamp); skeleton coordinates are already pixel-accurate.
+        Mark pen_lifts between strokes and skip interpolation across them.
         """
         strokes = self.skeleton_strokes
         if not strokes:
             return self._lay_down_ink_grid(writer, target_frames)
 
-        # 把多条笔画展平成连续采样点序列，跨笔画处标记抬笔
+        # Flatten strokes into sampled positions and mark pen lifts between strokes
         samples: list[tuple[int, int]] = []
         pen_lifts: set[int] = set()
         for si, stroke in enumerate(strokes):
             if si > 0:
-                pen_lifts.add(len(samples))  # 笔画间抬笔
+                pen_lifts.add(len(samples))  # Pen lift between strokes
             samples.extend(stroke)
 
         n = len(samples)
         if n == 0:
-            print("  无骨架笔画，跳过起笔段")
+            print("  No skeleton strokes; skipping ink stage")
             for _ in range(target_frames):
                 writer.write(self._snapshot_with_tip(self.out_w // 2, self.out_h // 2))
             return
 
         sample_idx_for_frame = self._frame_progress_indices(n, target_frames)
 
-        # 自适应停顿（用笔画数而非格数做密度判定）
+        # Adaptive pauses use stroke count instead of cell count for density
         pause_frames = self._pause_frame_indices(target_frames, len(strokes))
         if pause_frames:
-            print(f"  自适应停顿: {len(pause_frames)} 帧冻结 (模式={self.cfg.pause_mode})")
+            print(f"  Adaptive pauses: {len(pause_frames)} frozen frames (mode={self.cfg.pause_mode})")
 
         written = 0
         last_sample_idx: int | None = None
         report_step = max(1, target_frames // 10)
         for fi, si in enumerate(sample_idx_for_frame):
-            # 停顿帧：笔尖冻结
+            # Pause frame: freeze the pen
             if fi in pause_frames and last_sample_idx is not None:
                 sx, sy = samples[last_sample_idx]
                 writer.write(self._snapshot_with_tip(sx, sy))
                 written += 1
                 if (fi + 1) % report_step == 0:
-                    print(f"  起笔进度: {int((fi + 1) / target_frames * 100)}%")
+                    print(f"  Ink progress: {int((fi + 1) / target_frames * 100)}%")
                 continue
 
-            # 沿骨架揭墨：从上一帧采样点到当前帧采样点，逐段揭示原图墨迹
+            # Reveal original ink along skeleton segments between previous and current samples
             if last_sample_idx is None:
                 self._reveal_ink_segment(samples[si], samples[si])
             else:
@@ -1450,28 +1450,28 @@ class StreamBoardRenderer:
             written += 1
             last_sample_idx = si
             if (fi + 1) % report_step == 0:
-                print(f"  起笔进度: {int((fi + 1) / target_frames * 100)}%")
+                print(f"  Ink progress: {int((fi + 1) / target_frames * 100)}%")
 
-        # 收尾兜底：补齐帧数
+        # Finalize by filling remaining frames
         last = samples[-1]
         while written < target_frames:
             writer.write(self._snapshot_with_tip(*last))
             written += 1
-        print(f"  起笔完成(骨架): {n} 采样点, {written} 帧")
+        print(f"  Ink complete (skeleton): {n} samples, {written} frames")
 
-    # ── 添彩段入口：按 color_fill 分发到对应风格 ──
+    # Coloring-stage entry: dispatch by color_fill
     def wash_color(self, writer: cv2.VideoWriter, target_frames: int) -> None:
         if self.cfg.color_fill == "contour-wipe":
             return self.wash_color_contour(writer, target_frames)
         return self.wash_color_brush(writer, target_frames)
 
-    # ── brush：沿笔画轨迹，用圆形墨刷铺原色（默认风格）──
+    # Brush: paint original color along strokes using a circular brush
     def wash_color_brush(self, writer: cv2.VideoWriter, target_frames: int) -> None:
         path = self.stroke_path
         n = len(path)
         disk = _feathered_disk(self.cfg.brush_radius)
         if n == 0:
-            print("  无墨迹，跳过添彩段")
+            print("  No ink; skipping coloring stage")
             gaze = self.color_img
             for _ in range(target_frames):
                 writer.write(gaze)
@@ -1483,8 +1483,8 @@ class StreamBoardRenderer:
         written = 0
         last_cell_idx: int | None = None
         for fi, ci in enumerate(cell_idx_for_frame):
-            # 按当前帧进度上色：从上一帧的格补刷到当前格，
-            # 把下采样可能跳过的中间格一并刷上，保证原色连续。
+            # Color according to frame progress: paint from previous cell to current cell.
+            # Include intermediate cells skipped by downsampling to preserve continuous color.
             if last_cell_idx is None:
                 self._color_stamp(*centers[ci], disk)
             else:
@@ -1496,86 +1496,86 @@ class StreamBoardRenderer:
             written += 1
             last_cell_idx = ci
             if (fi + 1) % max(1, target_frames // 10) == 0:
-                print(f"  添彩进度: {int((fi + 1) / target_frames * 100)}%")
+                print(f"  Color progress: {int((fi + 1) / target_frames * 100)}%")
 
-        # 收尾兜底
+        # Finalize remaining color
         last = centers[-1]
         while written < target_frames:
             writer.write(self._snapshot_with_tip(*last))
             written += 1
-        print(f"  添彩完成: {n} 格, {written} 帧")
+        print(f"  Color complete: {n} cells, {written} frames")
 
-    # ── contour-wipe：轮廓感知自上而下扫描上色 ──
+    # Contour-wipe: contour-aware top-to-bottom coloring
     def wash_color_contour(self, writer: cv2.VideoWriter, target_frames: int) -> None:
         """
-        颜色不沿笔画轨迹刷，而是全局自上而下扫一道揭示前沿。
-        前沿遇轮廓先卡住（阻力≈1 扣减 delay_px），再随其下方衰减阴影缓慢越过，
-        形成"颜色沿着线蔓延"的观感。笔尖做横向来回扫动，模拟手在涂色。
+        Instead of brushing along strokes, sweep a global color-reveal frontier from top to bottom.
+        Contours initially hold the frontier back (resistance about 1 reduces it by delay_px), then it crosses as resistance decays.
+        This makes color appear to spread along lines; the pen sweeps horizontally to simulate coloring.
         """
         cfg = self.cfg
         h, w = self.out_h, self.out_w
 
         if target_frames <= 0:
-            print("  无添彩帧，跳过 contour-wipe 段")
+            print("  No color frames; skipping contour-wipe stage")
             return
 
-        # 一次性预计算：阻力场、水波边界、扣减像素数、行坐标网格
+        # Precompute resistance field, wave boundary, delay pixels, and row-coordinate grid
         resistance = self._build_resistance_field()
         wave = _build_wipe_wave(w)
         delay_px = int(np.clip(h * cfg.wipe_delay_ratio, 12, 52))
         blocks = max(1, cfg.wipe_blocks)
-        ys = np.arange(h, dtype=np.float32)[:, None]   # (H,1)，逐帧复用
+        ys = np.arange(h, dtype=np.float32)[:, None]   # (H,1), reused each frame
 
-        # 把 self.drawn 复位为"线稿已绘完"的状态（brush 在 lay_down_ink 后接续，此处同样接续）
-        # color_img 是揭示目标
+        # Continue from the completed line-art state, as brush mode does after lay_down_ink.
+        # color_img is the reveal target
         color_src = self.color_img.astype(np.float32)
 
-        print(f"  contour-wipe: {w}x{h}, delay_px={delay_px}, 趟数={blocks}")
+        print(f"  contour-wipe: {w}x{h}, delay_px={delay_px}, passes={blocks}")
 
         written = 0
-        # 揭示前沿从 -delay_px 扫到 h+delay_px，全程覆盖
+        # Reveal frontier sweeps from -delay_px to h+delay_px for full coverage
         sweep = h + 2 * delay_px
         report_step = max(1, target_frames // 10)
 
         for fi in range(target_frames):
-            # 全局进度（带正弦缓动）：0 → 1
+            # Global progress with sine easing: 0 to 1
             if target_frames == 1:
                 progress = 1.0
             else:
                 progress = fi / (target_frames - 1)
             lead = _ease_in_out_sine(progress) * sweep - delay_px
 
-            # 揭示掩码：y <= lead + wave[x] - resistance[y,x]*delay_px
+            # Reveal mask: y <= lead + wave[x] - resistance[y,x]*delay_px
             threshold = lead + wave[None, :] - resistance * delay_px  # (H,W)
             reveal = ys <= threshold                        # (H,W) bool
 
-            # 揭示原色到 drawn 缓存
+            # Reveal source colors into the drawn buffer
             self.drawn[reveal] = color_src[reveal]
 
-            # 笔尖横向扫动：blocks 趟来回，奇数趟反向
-            lane = (fi / blocks * 2.0) % 1.0               # 单趟归一化进度 0..1
+            # Sweep pen horizontally back and forth; reverse odd passes
+            lane = (fi / blocks * 2.0) % 1.0               # Normalized progress of one pass, 0..1
             lane = _ease_in_out_sine(lane)
-            forward = (int(fi // blocks) % 2 == 0)         # 偶数趟正向、奇数趟反向
+            forward = (int(fi // blocks) % 2 == 0)         # Even passes forward, odd passes backward
             cursor_x = int(lane * w) if forward else int((1.0 - lane) * w)
             cursor_x = max(0, min(w - 1, cursor_x))
 
-            # 光标 y = 当前列已揭示像素的最底部行
+            # Cursor y is the lowest revealed row in the current column
             col_revealed = np.where(reveal[:, cursor_x])[0]
             cursor_y = int(col_revealed[-1]) if col_revealed.size > 0 else 0
 
             writer.write(self._snapshot_with_tip(cursor_x, cursor_y))
             written += 1
             if (fi + 1) % report_step == 0:
-                print(f"  添彩进度(contour-wipe): {int((fi + 1) / target_frames * 100)}%")
+                print(f"  Color progress (contour-wipe): {int((fi + 1) / target_frames * 100)}%")
 
-        # 收尾兜底：确保整图已揭示（最后一帧进度=1 时 lead≈h+delay_px，理论上全覆盖）
+        # Finalize full reveal; final lead is about h+delay_px, theoretically covering all pixels
         full_reveal = np.ones((h, w), dtype=bool)
         self.drawn[full_reveal] = color_src[full_reveal]
         last = self._snapshot_with_tip(w // 2, h - 1)
         while written < target_frames:
             writer.write(last)
             written += 1
-        print(f"  contour-wipe 完成: {written} 帧")
+        print(f"  contour-wipe complete: {written} frames")
 
     def render_to(self, raw_path: Path, total_ms: int) -> Path:
         cfg = self.cfg
@@ -1585,37 +1585,37 @@ class StreamBoardRenderer:
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(str(raw_path), fourcc, cfg.fps, (self.out_w, self.out_h))
 
-        print(f"  墨流: {len(self.ink_streams)} 条, 墨迹格: {ink_cells}")
+        print(f"  Ink streams: {len(self.ink_streams)}, ink cells: {ink_cells}")
         print(
-            f"  时长: {total_ms}ms -> 起笔 {plan.ink_frames}f / "
-            f"添彩 {plan.color_frames}f / 凝视 {plan.gaze_frames}f (权重 {plan.ratio_label})"
+            f"  Duration: {total_ms}ms -> ink {plan.ink_frames}f / "
+            f"color {plan.color_frames}f / hold {plan.gaze_frames}f (weights {plan.ratio_label})"
         )
 
         started = time.time()
         self.lay_down_ink(writer, plan.ink_frames)
         self.wash_color(writer, plan.color_frames)
-        # 凝视：完整原图
+        # Finished hold: complete source image
         gaze_img = self.color_img
         for _ in range(plan.gaze_frames):
             writer.write(gaze_img)
         writer.release()
-        print(f"  渲染耗时: {time.time() - started:.1f}s")
+        print(f"  Render time: {time.time() - started:.1f}s")
         return raw_path
 
 
 # ──────────────────────────────────────────────────────────────
-# 转码（系统 ffmpeg 优先，PyAV 备选，两者都没有则保留 mp4v）
+# Transcoding: system ffmpeg first, PyAV second, retain mp4v if neither exists
 # ──────────────────────────────────────────────────────────────
 def transcode_h264(src: Path, dst: Path) -> Path:
     """
-    把 mp4v 原始视频转码为 H.264（yuv420p），提升播放器兼容性。
+    Transcode raw mp4v video to H.264 (yuv420p) for better player compatibility.
 
-    优先级：
-      1. 系统 ffmpeg 子进程（编码效率最高、体积最小，CRF=20）
-      2. PyAV（纯 pip 安装，无需系统 ffmpeg；编码效率稍逊，用 CRF=28 控制体积）
-      3. 两者都没有：保留原始 mp4v 编码并告警
+    Priority:
+      1. System ffmpeg subprocess (best compression efficiency and smallest files, CRF=20).
+      2. PyAV (pip-installed without system ffmpeg; less efficient, use CRF=28).
+      3. If neither is available, preserve raw mp4v and emit a warning.
     """
-    # 路径1：系统 ffmpeg（推荐，体积最优）
+    # Route 1: system ffmpeg (recommended, smallest files)
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is not None:
         cmd = [
@@ -1629,29 +1629,29 @@ def transcode_h264(src: Path, dst: Path) -> Path:
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode == 0:
             src.unlink(missing_ok=True)
-            print(f"  H.264 转码完成(ffmpeg): {dst}")
+            print(f"  H.264 transcoding complete (ffmpeg): {dst}")
             return dst
-        print(f"  [warn] ffmpeg 转码失败: {res.stderr.strip()}")
+        print(f"  [warn] ffmpeg transcoding failed: {res.stderr.strip()}")
 
-    # 路径2：PyAV（备选，纯 pip 安装）
+    # Route 2: PyAV (pip-installable fallback)
     try:
         return _transcode_with_pyav(src, dst)
     except ImportError:
         pass
     except Exception as e:
-        print(f"  [warn] PyAV 转码失败: {e}")
+        print(f"  [warn] PyAV transcoding failed: {e}")
 
-    # 路径3：都没有，保留 mp4v
-    print(f"  [warn] 未找到 ffmpeg 和 PyAV，保留原始 mp4v 编码: {src}")
-    print(f"         安装任一即可获得 H.264: pip install av  或  安装系统 ffmpeg")
+    # Route 3: neither available; retain mp4v
+    print(f"  [warn] Neither ffmpeg nor PyAV found; retaining original mp4v: {src}")
+    print("         Install either for H.264: pip install av, or install system ffmpeg")
     return src
 
 
 def _transcode_with_pyav(src: Path, dst: Path) -> Path:
     """
-    用 PyAV 在 Python 内做 H.264 转码。PyAV 未装时抛 ImportError。
-    PyAV 自带的 libx264 编码效率低于系统 ffmpeg（同 CRF 下体积大数倍），
-    故用 CRF=28 平衡体积与画质。
+    Transcode to H.264 in Python using PyAV; raise ImportError if PyAV is missing.
+    Bundled PyAV libx264 can produce larger files than system ffmpeg at equal CRF.
+    Use CRF=28 to balance size and quality.
     """
     import av
     input_container = av.open(str(src), mode="r")
@@ -1679,7 +1679,7 @@ def _transcode_with_pyav(src: Path, dst: Path) -> Path:
     output_container.close()
     input_container.close()
     src.unlink(missing_ok=True)
-    print(f"  H.264 转码完成(PyAV): {dst}")
+    print(f"  H.264 transcoding complete (PyAV): {dst}")
     return dst
 
 
@@ -1688,42 +1688,42 @@ def _transcode_with_pyav(src: Path, dst: Path) -> Path:
 # ──────────────────────────────────────────────────────────────
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="把一张图片渲染成流式笔迹白板动画视频"
+        description="Render an image as a stream-stroke whiteboard animation video"
     )
-    p.add_argument("image", help="输入图片路径 (PNG/JPG/JPEG/BMP/TIFF)")
-    p.add_argument("--out-dir", default="./out", help="输出目录 (默认: ./out)")
-    p.add_argument("--total-ms", type=int, default=10000, help="视频总时长，单位毫秒 (默认: 10000)")
-    p.add_argument("--bare-tip", action="store_true", help="不叠加笔尖/手部覆盖")
+    p.add_argument("image", help="Input image path (PNG/JPG/JPEG/BMP/TIFF)")
+    p.add_argument("--out-dir", default="./out", help="Output directory (default: ./out)")
+    p.add_argument("--total-ms", type=int, default=10000, help="Total video duration in milliseconds (default: 10000)")
+    p.add_argument("--bare-tip", action="store_true", help="Do not overlay a pen tip or hand")
     p.add_argument(
         "--pen-image", default=str(DEFAULT_HAND_PNG),
-        help="自定义笔尖/手部素材路径 (默认: skill 内置 drawing-hand.png)",
+        help="Custom pen/hand asset path (default: bundled drawing-hand.png)",
     )
-    p.add_argument("--fps", type=int, default=None, help="覆盖默认帧率")
-    p.add_argument("--grid-edge", type=int, default=None, help="覆盖默认网格边长")
-    p.add_argument("--brush-radius", type=int, default=None, help="覆盖默认墨刷半径")
+    p.add_argument("--fps", type=int, default=None, help="Override default frame rate")
+    p.add_argument("--grid-edge", type=int, default=None, help="Override default grid-cell edge length")
+    p.add_argument("--brush-radius", type=int, default=None, help="Override default brush radius")
     p.add_argument(
         "--color-fill", default="contour-wipe", choices=["brush", "contour-wipe"],
-        help="添彩阶段上色风格: contour-wipe 轮廓感知自上而下扫描 (默认); brush 沿笔画轨迹刷",
+        help="Coloring style: contour-wipe (contour-aware top-down scan, default); brush follows strokes",
     )
     p.add_argument(
         "--wipe-decay", type=float, default=None,
-        help="contour-wipe: 阻力场逐行向下衰减系数 (默认 0.86，越小越快越过轮廓)",
+        help="contour-wipe: downward resistance decay per row (default 0.86; lower crosses contours faster)",
     )
     p.add_argument(
         "--wipe-delay-ratio", type=float, default=None,
-        help="contour-wipe: 轮廓处前沿扣减比例×h (默认 0.04，越大轮廓处停留越久)",
+        help="contour-wipe: frontier delay ratio times height (default 0.04; larger holds at contours longer)",
     )
     p.add_argument(
         "--wipe-blocks", type=int, default=None,
-        help="contour-wipe: 笔尖横向来回扫动趟数 (默认 18)",
+        help="contour-wipe: number of horizontal pen sweeps (default 18)",
     )
     p.add_argument(
         "--pause", default="heavy", choices=["auto", "off", "light", "heavy"],
-        help="起笔段停顿节奏: heavy 明显(默认); auto 按密度自动分档; off 关闭; light 少量",
+        help="Ink-stage pause rhythm: heavy (default); auto by density; off; light",
     )
     p.add_argument(
         "--ink-path", default="grid", choices=["grid", "skeleton"],
-        help="起笔段笔迹路径: grid 网格格中心插值(默认); skeleton 骨架级像素追踪(更精准贴合线条)",
+        help="Ink path: grid (interpolated cell centers, default); skeleton (pixel-level tracing, closer to lines)",
     )
     return p.parse_args(argv)
 
@@ -1756,12 +1756,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     cfg = _build_cfg(args)
 
     print("=" * 56)
-    print("流式笔迹动画渲染器")
+    print("Stream-stroke animation renderer")
     print("=" * 56)
 
     image_bgr = _imread_any(args.image)
     if image_bgr is None:
-        print(f"[err] 无法读取图片: {args.image}")
+        print(f"[err] Cannot read image: {args.image}")
         return 1
 
     out_dir = Path(args.out_dir)
@@ -1772,18 +1772,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     pen_png = Path(args.pen_image) if args.pen_image else None
     renderer = StreamBoardRenderer(image_bgr, cfg, pen_png, args.bare_tip)
-    print(f"  输入: {args.image}")
-    print(f"  输出尺寸: {renderer.out_w}x{renderer.out_h}, 帧率: {cfg.fps}")
+    print(f"  Input: {args.image}")
+    print(f"  Output dimensions: {renderer.out_w}x{renderer.out_h}, frame rate: {cfg.fps}")
 
     renderer.render_to(raw_path, args.total_ms)
     final = transcode_h264(raw_path, h264_path)
 
     size_mb = final.stat().st_size / (1024 * 1024)
-    print(f"\n最终视频: {final}")
-    print(f"  文件大小: {size_mb:.2f} MB")
+    print(f"\nFinal video: {final}")
+    print(f"  File size: {size_mb:.2f} MB")
     print("=" * 56)
-    print("完成")
-    # 末行输出最终路径，便于上层捕获
+    print("Complete")
+    # Print final path on last line for callers
     print(f"OUTPUT={final}")
     return 0
 
