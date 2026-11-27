@@ -1,49 +1,49 @@
-> 范围：本文件服务于原仓库的生图/Flow 提示词模式。程序动画模式以 SKILL.md、DESIGN.md 和用户已确认样片为准；不要套用这里的禁标签卡、静止小关键词规则。
+> Scope: This file covers image-generation and Flow prompt-only mode. For programmatic animation, follow SKILL.md, DESIGN.md, and the approved sample; do not impose the no-label-card or static-keyword rules below.
 
-# Q 版蜡笔（Q Doodle）风格与运动参考
+# Q Doodle Crayon Style and Motion Reference
 
-这是可选的文字风格规范，当前未附示例图或已验证动画工程。只有选用本风格时，才沿用下面的配色、笔触和运动约束；用户指定新参考图时按新图调整相应视觉约束，不混入相互冲突的固定风格词。如何选择和保存风格见 [style-selection-and-updates.md](style-selection-and-updates.md)。
+This optional written style specification has no bundled example image or verified animation project. Apply its palette, strokes, and motion only when selected. Adapt conflicting constraints to new user references. See [style selection and updates](style-selection-and-updates.md).
 
-## 视觉签名
+## Visual signature
 
-每条生图提示词都重复以下核心约束，避免批次漂移：
+Repeat these core constraints in each image prompt to reduce drift:
 
 ```text
 modern Q-version hand-drawn crayon illustration, vertical 9:16, solid warm-white canvas background, exact base color #F8F6EF, only extremely subtle low-contrast paper grain, thick imperfect black hand-drawn marker/crayon outlines, bold flat wax-crayon blocks, sunflower yellow, saturated cobalt blue and vivid tomato red with only a small muted-green accent, natural restrained Q-version proportions, simple hand-drawn composition, 2–4 large readable visual groups, generous breathing room, no glossy rendering, no realistic lighting, no logos, no watermark, no photorealism, no 3D
 ```
 
-## 固定背景色
+## Fixed background color
 
-所有静帧和视频尾帧使用同一背景约束：
+Use the same background constraints for all stills and final frames:
 
 ```text
 Use a flat, uniform warm-white canvas background with exact base color #F8F6EF. Preserve the same background color across every shot. Add only extremely subtle low-contrast paper grain. No black background, no gray-brown tint, no yellow-beige color cast, no gradient, no vignette, no colored paper, no border shadow.
 ```
 
-Flow 的自然语言提示不能保证真正的像素级色值。若必须完全一致，使用一张 `#F8F6EF` 的固定 First Frame，或在生成后把画布背景统一替换为该色号。
+Natural-language Flow prompts cannot guarantee exact pixel colors. Use a fixed `#F8F6EF` First Frame or normalize the background afterward if exact matching is necessary.
 
-## 中文关键词模式
+## Keyword mode
 
-当用户希望关键词直接出现在卡片或视频画面中，使用短词而非长句，并指定具体文字、位置和安全区：
+For on-screen keywords, choose short phrases and specify exact wording, placement, and safe zone:
 
 ```text
-Show the exact Chinese keyword “好奇心” as small, clean, high-contrast hand-drawn lettering directly on the warm-white illustration paper near the upper-left margin, not inside a card, label, sticker, note or text box. Keep it perfectly legible and unchanged throughout the shot, and do not add any other text.
+Show the exact English keyword “Curiosity” as small, clean, high-contrast hand-drawn lettering directly on the warm-white illustration paper near the upper-left margin, not inside a card, label, sticker, note or text box. Keep it perfectly legible and unchanged throughout the shot, and do not add any other text.
 ```
 
-文字优先直接写在暖白纸面、留白处或相关物件旁，禁止使用便签纸、标签卡、贴纸、圆角文字框、标题面板、独立白色卡片或底部字幕框。禁止放在底部字幕区，避免放在人物脸部、快速运动物件或复杂背景上。文字块不超过画面高度的 10%–12%，以“小而看得见”为目标。动态图中关键词本身必须保持静止、清晰、不变形。Flow 仍可能生成错别字，因此 2–8 个汉字是默认上限；公司名、金额、日期和长句应提供无文字安全版备用。
+Write directly on the paper, in negative space, or beside relevant objects. Avoid sticky notes, label cards, stickers, rounded text boxes, title panels, standalone white cards, and bottom caption boxes. Keep text out of subtitle areas, faces, fast-moving objects, and complex backgrounds. Text should occupy no more than 10–12% of frame height and remain still, legible, and undistorted. Flow may misspell even short words; provide a text-free alternative for names, amounts, dates, and long sentences.
 
-人物头部可略大、身体略小，但不能巨头小身、凸眼或儿童卡通。人物用发型、眼镜、服装、姿势和道具做身份锚点，不要求写实肖像。物件允许比人物夸张，笑点来自动作、比例与物件关系。背景保持干净，不加复杂房间、赛博 HUD、复古报刊、泛黄旧纸、棕灰低饱和、细密交叉排线或假文字。
+Slightly oversized heads and smaller bodies are acceptable, but avoid extreme proportions, bulging eyes, or childish cartoon styling. Use hairstyle, glasses, clothing, posture, and props as identity anchors rather than photorealism. Exaggerate objects and their relationships for humor. Keep backgrounds clean: no complex rooms, cyber HUDs, vintage newspapers, yellowed paper, muted brown-gray casts, dense crosshatching, or pseudo-writing.
 
-## 构图规则
+## Composition rules
 
-- 画面为 9:16 竖版，主体组通常占画面宽度 60%–70%，顶部和左右保留小型关键词安全区，底部预留字幕区且不放大字。
-- 每镜头使用 2–4 个主要视觉组；手机端一秒可读。避免过高的多层堆叠塔、过多小人物、复杂机械细节和海报式信息堆叠。
-- 用明确的左/中/右、前/后、上/下关系写提示词，不只写抽象情绪。
-- 真实 Logo、公司名、人物名、日期、金额和长句优先由后期层处理；短中文关键词可直接手写在画面纸面、留白处或相关物件旁。无文字版本保留干净留白，不生成便签纸、标签卡或文字容器。
+- Use 9:16 portrait format; the central group usually occupies 60–70% of width. Reserve top and side keyword space and a clear lower subtitle zone.
+- Use 2–4 major visual groups, readable within a second on mobile. Avoid tall stacks, tiny characters, intricate machinery, and poster-like clutter.
+- Specify left/center/right, foreground/background, and vertical relationships instead of abstract emotion alone.
+- Render real logos, company/person names, dates, amounts, and long sentences in post-production. Short keywords may be handwritten on paper or near objects. Text-free variants retain clean negative space without text containers.
 
-## 真实实体锚点
+## Real-entity anchors
 
-生成涉及真实实体的画面时，使用以下规则：
+Use these rules when depicting real entities:
 
 ```text
 For an exact national flag, preserve the official country name, flag colors, geometry, emblem placement and aspect ratio. Do not substitute a similar flag, random flag or abstract color pattern.
@@ -51,32 +51,32 @@ For a real company, use its industry, products, hardware and restrained brand-co
 For a famous person, use a clearly stylized non-photorealistic chibi caricature with public identity cues such as hairstyle, glasses, clothing and posture. Do not bypass safety restrictions or attempt a photorealistic face clone.
 ```
 
-如果国旗或 Logo 是镜头的核心信息，提示词必须建议使用参考图或后期叠加原始素材；生成模型只负责周围的 Q 版构图和动作。实体准确性不能靠“更详细的形容词”保证。
+When a flag or logo is essential, recommend a reference image or original overlay; the model supplies surrounding chibi composition and action. More descriptive adjectives do not guarantee entity accuracy.
 
-## Flow 图生视频运动语法
+## Flow image-to-video motion syntax
 
-默认提示词可按以下顺序组织：
+Structure prompts in this order:
 
 1. `Start from the supplied completely blank #F8F6EF warm-white paper frame.`
-2. 保持 `locked flat frontal camera`，先让基础物件滑入或以不规则蜡笔线出现。
-3. 人物和次要物件作为 `rigid flat paper cutouts` 依次弹入并轻微 settling bounce。
-4. 关系元素最后出现：例如放大镜对准电表、砝码压住云、硬币接近嘴、手按下开关。
-5. 最后约 0.8 秒 `settle into and hold the exact supplied final illustration`。
+2. Keep a `locked flat frontal camera`; slide in base objects or reveal them with irregular crayon lines.
+3. Introduce characters and secondary objects as `rigid flat paper cutouts` with slight settling bounce.
+4. Reveal relationships last: magnifier over meter, weight on cloud, coins approaching mouth, or hand pressing switch.
+5. For the last 0.8 seconds, `settle into and hold the exact supplied final illustration`.
 
-统一写明：`tactile 10–12 fps paper stop-motion`、无镜头移动/缩放/视差、无液体变形、无口型、无新增角色、无新增 Logo、无水印、无声音；启用中文关键词时写明关键词直接留在纸面或物件旁、固定、清晰、不变形、不新增其他文字或文字容器。
+Specify `tactile 10–12 fps paper stop-motion`, no camera movement/zoom/parallax, liquid morphing, lip sync, additional characters/logos, watermarks, or audio. If keywords are enabled, keep them on paper or beside objects, static, legible, undistorted, without extra text or containers.
 
-Flow 使用 First + last 时：First Frame 是完全空的暖白纸，Last Frame 是对应编号完成静帧；提示词必须明确“最终构图与风格参考”。如果只能使用单张完成图，改成：
+For Flow First + Last, First Frame is blank warm-white paper and Last Frame is the numbered completed still. Explicitly identify final composition and style reference. If only the completed image is available, use:
 
 ```text
 Animate the supplied completed illustration in place for about 5 seconds while preserving every drawn shape and the exact composition. Use only restrained paper-cutout micro-motion: one or two small object bounces, a short hinge-like hand movement, subtle wheel rotation or one accent appearing. End on the unchanged supplied illustration and hold it still for the final second.
 ```
 
-## 视觉隐喻速查
+## Visual metaphor reference
 
-| 口播关系 | 优先隐喻 |
+| Narration relationship | Preferred metaphor |
 |---|---|
-| 竞争/跑输 | 赛跑、追逐、拔河 |
-| 成本/吞噬 | 漏水、重物下压、吞金兽、计价器 |
-| 验证/财报 | 考试、试金石、体检、放大镜 |
-| 选择/结论 | 岔路、天平、开关、两扇门 |
-| 风险/压力 | 裂缝、警报、摇晃积木、倒计时 |
+| Competition / losing a race | Race, chase, tug-of-war |
+| Cost / consumption | Leaks, weights, money-eating monster, meter |
+| Verification / earnings | Exam, touchstone, health check, magnifier |
+| Choice / conclusion | Fork, balance, switch, two doors |
+| Risk / pressure | Crack, alarm, unstable blocks, countdown |

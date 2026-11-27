@@ -1,126 +1,107 @@
-# 逐笔故事模式
+# Stroke-by-Stroke Storytelling
 
-当用户要的是“一幅画随着讲解被画出来”，使用本流程。这里的核心不是手绘风格，而是同一张画布按旁白语义持续落墨；已画内容保留，后续人物、动作和结果依次补全。
+Use when the user wants a picture drawn progressively while narration plays. The defining feature is continuous ink on one persistent canvas, following narrative meaning. Earlier art remains while later characters, actions, and outcomes are added.
 
-## 后端与能力边界
+## Backend and capabilities
 
-使用本仓库 `vendor/srt-whiteboard-animation/` 中的运行时。它不含第二个 `SKILL.md`，不会单独触发或插入额外确认步骤。首次先运行其 `scripts/prepare_env.py` 创建隔离环境，再执行只读预检：
+Use the runtime in vendor/srt-whiteboard-animation/. It is not a second skill and introduces no independent trigger or extra approval. First run its scripts/prepare_env.py to create an isolated environment, then run read-only preflight:
 
 ```text
 <python> <skill>/scripts/stroke_story_preflight.py \
-  --report <项目>/preflight-stroke-story.json
+  --report <project>/preflight-stroke-story.json
 ```
 
-预检不安装依赖、不调用模型、不合成语音。失败只阻止逐笔渲染，不应重做已经通过的配音、SRT 或插画。不要在后端不可用时静默回退到 SVG；说明缺口并等待用户选择。
+Preflight installs nothing, calls no models, and synthesizes no speech. Failure blocks only stroke rendering; preserve approved narration, SRT, and illustration. Do not silently fall back to SVG; report the gap and obtain approval.
 
-`srt-whiteboard-animation` 的分区遮罩、持久画布和 stream 渲染器来自 MIT 开源项目：<https://github.com/geeklee/srt-whiteboard-animation>。内置快照只负责画面轨，主 Skill 负责所选旁白、字幕、最终合成和验收；来源、提交与本地修改见 `vendor/srt-whiteboard-animation/UPSTREAM.md`，原许可证完整保留。
+The region masks, persistent canvas, and stream renderer derive from MIT-licensed https://github.com/geeklee/srt-whiteboard-animation. The bundled snapshot produces video tracks; the main skill handles narration, subtitles, final composition, and acceptance. See vendor/srt-whiteboard-animation/UPSTREAM.md and its preserved license. Consult [upstream review](upstream-whiteboard-review.md) before adopting experimental changes.
 
-维护或继续借鉴上游时，先读 [upstream-whiteboard-review.md](upstream-whiteboard-review.md)。其中区分了已吸收能力、由本 Skill 自行覆盖的方案，以及不适合直接设为默认的实验功能。
+## 1. Audio and timing
 
-## 1. 声音与时间轴
+Reuse or create full narration before generating SRT aligned to real audio. SRT determines drawing rhythm, not automatically burned-in captions. Retain script.txt (original), narration.txt (synthesis input), narration.mp3 (approved voice), captions.srt, and timeline.json (sentence, scene, and composition timing).
 
-先复用或生成完整旁白，再依据真实音频生成 SRT。SRT 是绘制节奏的依据，不等于已经完成字幕烧录。保留：
+Use the user-selected or configured language-compatible voice. Do not charge again for matching approved audio. For drawing and narrating in stages, left-to-right composition, or keywords during drawing, read [semantic-island-storytelling.md](semantic-island-storytelling.md). Allocate ink, coloring, and hold from real audio before choosing illustration complexity.
 
-- `script.txt`：用户原稿；
-- `narration.txt`：实际合成输入；
-- `narration.mp3`：确认音色的完整旁白；
-- `captions.srt`：与音频对齐的字幕；
-- `timeline.json`：句段、场景和最终合成时间。
+## 2. Design drawable complete scenes
 
-新旁白使用用户指定或本地配置的音色。用户明确要求复用且稿件未变时，不重复收费生成。
+Write DESIGN.md and per-scene illustration plans. One continuously completed scene can support 20–35 seconds; for multiple events or changing relationships prefer 4–8-second coherent scenes. If one image makes characters tiny, crowds five or more regions, or requires sticker-like framing, split it.
 
-当用户明确要“讲一部分画一部分”“先左后右”或在绘制中写关键词时，继续读 [semantic-island-storytelling.md](semantic-island-storytelling.md)。先用实际音频为每个区域分配落墨、补色和完成停留时间，再决定源图能承载多少细节；不能先生成一张密集图，再靠加快笔迹硬塞进旁白。
+Source art uses 9:16, 4:3, or 16:9 appropriate to platform and narrative space; keep subjects clear of headings and subtitles. Use clear dark contours, limited flat color, low texture, ample space. Chibi proportions are acceptable with consistent features, clothes, and period props. Render long text, dates, laws, logos, and names deterministically afterward. Avoid crayon noise, halftones, dense hatching, photographic texture, and large dark fills misidentified as ink.
 
-## 2. 设计一张可绘制的完整画面
+Inspect images before annotating; never guess coordinates from scripts or mechanically sort left-to-right.
 
-先写 `DESIGN.md` 和每幕配图策略。真正只有一个持续补全场景时，一张图可以承载 20–35 秒；含多个历史事件或人物关系变化时，优先按 4–8 秒一个完整含义拆成多幅连续故事画面。若一张图会导致人物过小、五个以上区域拥挤或为了框选变成贴纸拼盘，应直接拆幕。
+### 2.1 Choose aspect ratio and narrative composition
 
-逐笔源图采用：
+Connected lines crossing time regions cause unfinished objects and jumps. Do not default to four blocks.
 
-- 按发布渠道和故事空间选择 9:16、4:3 或 16:9，主体避开标题区和字幕安全区；
-- 清晰深色轮廓、有限平涂色、低纹理、充足留白；
-- Q 版人物可用大头短身，但人物五官、服装和时代道具需一致；
-- 不生成长句、日期、法条、Logo 或难以核验的中文；这些由确定性文字层承担；
-- 避免蜡笔噪点、半调网点、密集排线、摄影纹理和大面积深色填充，它们会被误识别为墨迹。
+- Unless portrait is required, use 16:9 for group scenes, historical environments, and spatial stories; 4:3 suits centered book-like scenes, 9:16 a single subject or portrait publication.
+- Multi-event scripts over 20 seconds generally need continuous 4–8-second scenes.
+- Each complete scene can have natural contact and occlusion. Draw as one region or at most environment then subject.
+- Keep characters, paper, palette, and camera direction consistent across scenes instead of creating grids or sticker collages.
+- Use 2–4 semantic islands only for explicitly requested progressive multi-meaning canvases or genuinely separate events sharing one illustration. Leave about 5–8% width as a natural gutter and avoid connecting contours or backgrounds.
+- Render precise wording and laws in subtitles/post-production rather than generated art.
 
-实际查看生成图后再标注。不能仅凭文稿臆测坐标，也不能按从左到右机械排序。
+Describe one event, relationships, environment, and camera per image prompt. Add island count and gutters only when applicable. Inspect actual images; if framing makes art a grid or catalog, split and regenerate. Prefer sequential generation, saving and inspecting each result to avoid uncertain partial failures and duplicate charges.
 
-### 2.1 先选择画幅与故事承载方式
+### 2.2 Drawability check
 
-逐笔渲染会把源图切成按时间出现的语义区域。如果多个事件硬塞进一张图，同一条连通笔迹容易被切给不同阶段，表现为一个元素还没画完就跳去画另一个元素。不要默认把一张图切成四块；先判断画幅和分幕能否让故事自然展开。
-
-- 用户没有强制竖屏时，人物群像、历史环境和有空间关系的故事优先用 16:9；主体集中、接近绘本页面时可用 4:3。9:16 适合单一中心人物或明确的竖屏发布渠道，不应为了沿用默认值压缩复杂故事。
-- 20 秒以上且包含多个事件的文稿，优先拆成多幅连续故事画面；每幅通常承载一个 4–8 秒叙事事件。
-- 每幅图内部是一个完整场景，人物、环境和视线关系可以自然接触与遮挡；整幅作为一个绘制区域，或最多拆成“环境 → 主体”两个前后景区域。
-- 场景之间通过同一角色造型、纸张、色板和镜头方向保持连续，而不是把多个事件做成一页四宫格、贴纸拼盘或信息图卡片。
-- 只有用户明确要“一张画逐渐补全多个含义”，或单幅图确实需要多个独立事件时，才使用 2–4 个语义岛。此时岛间保留约画面宽度 5%–8% 的自然留白，禁止跨岛背景线和轮廓粘连。
-- 图片模型不得生成长句或法条；需要精确呈现的文字继续使用字幕或后期文字层。
-
-生图提示词先写清本幅画对应的单一叙事事件、角色关系、环境和镜头；仅在使用多语义岛时再写岛数量、岛间留白和禁止跨岛连接。生成后必须实际查看；如果为了可框选而使画面像四宫格或素材陈列页，应改为拆幕重生成。
-
-同一任务需要多张生成图时优先逐张生成、返回后立即保存和检查。并发批量生成一旦长时间无中间结果，无法判断哪张成功，也容易造成整批重做；不要把并发作为这条路线的默认加速方式。
-
-### 2.2 标注后执行源图可绘制性检查
-
-一幅图包含两个以上独立区域时，创建标注后、打开预览台前运行：
+For two or more independent regions, run after annotation and before the preview editor:
 
 ```text
 <backend-python> <skill>/scripts/check_drawable_regions.py \
-  <图片> <annotation.json> --report <项目>/drawable-regions-report.json
+  <image> <annotation.json> --report <project>/drawable-regions-report.json
 ```
 
-检查区域是否越界、矩形是否重叠、岛间留白是否足够，以及显著前景连通线是否同时进入多个区域。报告失败时优先拆成多幅完整故事画面，其次才修源图；只有轻微纸纹误报才允许人工复核并在报告旁记录原因。单区域整幅绘制不需要人为制造留白。通过自动检查也不代替预览台逐区播放。
+Check bounds, rectangle overlap, spacing, and connected foreground crossing multiple regions. On failure prefer separate complete scenes, then repair source art. Minor paper-texture false positives require documented human review. One full-image region needs no artificial gutter. Passing is not a substitute for sequential playback.
 
-## 3. 按故事语义标注区域
+## 3. Annotate by narrative meaning
 
-创建与图片同名的 `annotation.json`。每个区域对应一个旁白事件，依次覆盖：场景铺垫 → 关键人物/物体 → 冲突或规则 → 反应/结果。使用：
+Create a matching annotation JSON. Each region corresponds to one spoken event: setup → key person/object → conflict/rule → reaction/result.
 
-- `sequence`：叙事顺序；
-- `subtitle`：对应原稿短句；
-- `startMs` / `durationMs`：来自真实音频；
-- `region`：只覆盖该事件的可见主体；
-- `protectedRegions`：遮挡或重叠时保护尚未开始的主体。
+- sequence: narrative order.
+- subtitle: corresponding original phrase.
+- startMs/durationMs: real audio.
+- region: visible subjects for that event.
+- protectedRegions: safeguard not-yet-started subjects in unavoidable overlaps.
 
-同一张画布上的已完成区域持续保留。预览时检查未来区域在开始前完全不可见，且区域边界不会切断同一人物的脸、手或关键道具。
+Completed regions remain on the same canvas. Preview future-region invisibility and avoid cutting faces, hands, or props. Place region boundaries in gutters; protectedRegions is not a cure for strongly connected or unsuitable compositions.
 
-区域框应位于岛间空白沟槽内，不要贴着人物轮廓切边。`protectedRegions` 只用于少量无法避免的遮挡，不用于挽救大面积相连或构图本身不适合分区的源图。
+Before rendering, run backend scripts/annotation_schema.py <annotation.json>. Out-of-bounds coordinates, canvas mismatch, or missing timing are blocking errors; nonconsecutive sequences, overlapping windows, and short holds need review.
 
-正式渲染前必须运行后端 `scripts/annotation_schema.py <annotation.json>`。坐标越界、画布尺寸不符、缺少时序字段属于阻断错误；顺序不连续、时间窗重叠或凝视不足属于需要人工确认的提醒。不要等渲染一半才从异常或错位中发现标注问题。
+## 4. Rendering choices
 
-## 4. 渲染选择
-
-正式样片默认：
+Default representative settings:
 
 ```text
 --ink-path skeleton --color-fill contour-wipe --hand-follow 0.35
 ```
 
-`skeleton` 让笔尖沿提取出的主要墨线移动，适合干净 Q 版漫画；`grid` 仅在实心文字或骨架无法稳定提取时使用，因为它会呈现小块补线。`contour-wipe` 是轮廓感知上色，不是真人彩笔笔顺；不要把它描述成真实手工上色。
-`hand-follow` 控制手部对笔尖的追随比例：1.0 是立即跟随，0.35 让手部缓动追随，适合复杂群像和轮廓补色阶段，降低移动过快对观感的干扰。它只改变手部显示位置，不改变旁白、笔迹或场景时长。
+skeleton follows extracted main ink paths; grid is for solid text or unstable skeletons and can look blocky. contour-wipe is contour-aware coloring, not actual human coloring order.
 
-实际笔迹仍然过快时，不要继续降低 `hand-follow` 期待“减速”。回到音频与源图：增加该区可用时间、把一个事件拆成两个区域/下一幕，或删减电路针脚、木纹、伪文字、排线和小装饰。代表镜头应在正常 30fps 下看得清主要轮廓、有限平涂和至少 0.5 秒完成停留。
+hand-follow controls the displayed hand's pursuit of the tip: 1.0 is immediate, 0.35 eases motion for group scenes/coloring. It changes hand position only, not narration, ink strokes, or scene duration.
 
-手部尺寸与速度分开控制。16:9 复杂群像可增加 `--hand-height 260` 至 `340` 的样片对比；9:16 单主体可使用更大的手。手部应能说明“正在画哪里”，但不能长期遮住人物表情或刚画出的关键道具。未指定时保留后端默认值，避免未经测试改变已确认样片。
+If real ink remains too fast, increase time, divide an event, or simplify circuitry, wood grain, pseudo-writing, hatching, and decorations. At normal 30fps, main contours, colors, and a minimum 0.5-second hold must be readable.
 
-某个区域被后续区域或 `protectedRegions` 完全扣空时，渲染器应保持当前画布到该区域时间窗结束，不在画面中央放一只静止的假手，也不让后续区域提前。这是时间轴不变量，不能靠删掉区域规避；应回到预览台检查框选是否本就错误。
+Hand size is independent of smoothing. For complex 16:9 groups compare --hand-height 260 to 340; portrait single subjects can use larger hands. Avoid obscuring faces and newly drawn props; preserve approved defaults unless explicitly changed.
 
-代表样段不仅看静态抽帧，还要连续播放至少一次跨笔画、一次大范围转向和一次轮廓补色。若手部仍抢画面，可在 0.25–0.55 内调整；数值越小越平滑但会更滞后。不要为了掩盖速度问题把整段视频降帧。用户明确不需要手部时才用 `--bare-tip`。
+An empty allowed mask must preserve the current canvas through its entire original window, without a fake centered hand or early subsequent regions. Review annotation rather than deleting the region.
 
-先渲染 10–15 秒代表样段，覆盖至少两个语义区域、一次抬笔和一次彩色补全。用户要求先确认时只交样片；确认后复用同一音频、画风、画布规则和后端参数继续全片。
+Play a representative sample continuously through at least one pen lift, broad turn, and color fill. Adjust hand-follow within 0.25–0.55 if needed; smaller values are smoother but lag more. Do not lower frame rate to conceal speed. Use --bare-tip only when requested.
 
-## 5. 最终合成
+Render 10–15 seconds including at least two regions, one pen lift, and one color completion. When sample approval is requested, deliver only the sample; after approval reuse audio, style, canvas rules, and backend settings.
 
-逐笔后端产生的是画面轨。使用主流程把旁白与确定性字幕合入最终 MP4；HyperFrames 或 FFmpeg 在这里仅承担字幕、标题、必要转场和合成，不得用 SVG 场景替换逐笔主体画面。
+## 5. Final composition
 
-字幕、法条和专名保持原文准确。需要突出时可在画面绘制完成后叠加短关键词，但不让图片模型生成正文。关键词通常为 2–6 个汉字或一个准确英文产品名，使用 ASS `\kf` 或等价的确定性逐字显现；必须检查它不压住人物表情、不进入字幕安全区，也不与下一语义区碰撞。
+The backend produces visual tracks. Use the main workflow to add narration and deterministic subtitles to final MP4. HyperFrames/FFmpeg handle captions, titles, transitions, and composition, not replacing the drawn subject.
 
-### 5.1 复杂彩色场景的末帧补全
+Preserve accurate subtitles, laws, and names. Add short keywords after drawing, using ASS `\kf` or equivalent deterministic reveal, without covering expressions, subtitle zones, or future regions.
 
-`contour-wipe` 对低纹理平涂图通常能完整上色，但纸纹、浅色衣物和复杂群像可能在幕尾留下白色斑点。渲染成功不等于最终帧已经还原源图：逐幕抽取最后 0.3–0.5 秒的帧，与批准源图实际比较。
+### 5.1 Complex color completion
 
-只有对照确认漏色时，才保留已经完成的逐笔过程，在每幕最后约 0.9 秒开始淡入批准源图，淡入约 0.65 秒，再留出观看时间。若逐幕渲染已经完整上色，直接统一转码拼接；无条件叠加源图可能在片尾制造裁切、缩放或闪变。不要重新生成插画，也不要用一闪而过的硬切遮盖问题。
+contour-wipe works well on low-texture flat art but may leave white patches in paper texture, pale clothes, and complex groups. Compare each scene's final 0.3–0.5 seconds to approved art.
 
-多幕成片优先使用本技能的统一收尾脚本。清单中的路径相对清单文件解析：
+Only if confirmed incomplete, retain the entire stroke process and fade in the approved source starting about 0.9 seconds before the end, with a 0.65-second fade and reading hold. If complete, re-encode and join directly. Unconditional overlays risk crops, scaling, and flashes. Never regenerate approved illustration or hide errors with hard cuts.
+
+Use the finalization helper with paths relative to manifest:
 
 ```json
 {
@@ -137,29 +118,28 @@
 
 ```text
 <python> <skill>/scripts/finalize_stroke_video.py \
-  --manifest <项目>/stroke-finalize.json \
-  --ffmpeg <已预检FFmpeg> \
+  --manifest <project>/stroke-finalize.json \
+  --ffmpeg <preflight-verified-ffmpeg> \
   --source-overlay never \
-  --output <项目>/final.mp4
+  --output <project>/final.mp4
 ```
 
-脚本默认不覆盖已完成场景，只统一帧率、尺寸和时间基准，再合入旁白与 ASS 字幕。只有末帧对照确认漏色时才改为 `--source-overlay always`，并确保每幕清单提供批准源图。这样可以避开不同幕因帧数取整导致的 concat/PyAV 时间戳错误，也不会把“补全”误用成片尾二次覆盖。若不需要旁白，可省略清单中的 `narration`；没有 ASS 时省略 `ass`。
+By default the script does not overlay finished scenes; it standardizes frame rate, dimensions, time base and adds narration/ASS. Only use --source-overlay always after verifying missing color; provide approved images in manifest. This avoids concat/PyAV timestamp rounding errors. Omit narration or ass fields when unnecessary.
 
-幕间默认保持简洁切换或轻微淡化，优先维护故事连续性。上游实验性的“停留后用橡皮擦入下一幕”可作为可选风格测试，但不要直接设为彩色 Q 版故事的默认：橡皮会增加一只大手和额外动作，可能抢走叙事注意力。只有样片证明更自然时再启用，并把转场新增时长写回 `timeline.json`，同步平移字幕和旁白。
+Use simple cuts or light fades to preserve continuity. Experimental eraser transitions add a large hand and extra movement; test before selecting, record extra duration in timeline.json and shift captions/audio.
 
-## 6. 验收
+## 6. Acceptance
 
-除通用成片检查外，逐笔模式还要验证：
+In addition to common QA:
+1. Clean first frame without future lines.
+2. New ink near pen tip; pen lifts without fake connecting lines.
+3. sequence and startMs match narrative.
+4. Completed areas persist; future regions remain hidden.
+5. Final frame matches approved color source, with at least 0.5 seconds hold.
+6. Hand smoothing does not obscure content or visibly detach from new strokes.
+7. No texture-driven scribbling, teleports, white patches, or dark flashes.
+8. No duplicate/black frames or timestamp jumps after merging.
+9. Final MP4 contains complete requested video, narration, captions, duration, final sentence, and frame.
+10. For multiple regions inspect ~0.2 seconds before completion and ~0.2 seconds after next start, three frames on either side of cuts, and final 0.3–0.5 seconds.
 
-1. 首帧为干净画布，没有未来线条泄漏；
-2. 新出现的主要墨线与当前笔尖接近，跨笔画时有明确抬笔而非拖出假线；
-3. `sequence`、`startMs` 与旁白事件一致；
-4. 已完成区域持续保留，后续区域不会提前出现；
-5. 最终帧完整还原批准的彩色源图，并留出至少 0.5 秒观看；
-6. 手部缓动不抢画面，也没有明显脱离当前新增笔迹；
-7. 没有因纹理误判产生的大面积乱画、笔尖瞬移、漏色白斑或深色块闪现；
-8. 多幕合并后没有重复帧、短黑帧或时间戳跳变；
-9. 最终 MP4 有视频、有旁白、有字幕，时长、末句和末帧均完整。
-10. 两个以上语义区域时，逐一查看“前区完成前约 0.2 秒 → 后区开始后约 0.2 秒”，确认前区保留、后区不提前；另看每个切点前后 3 帧和最终 0.3–0.5 秒。
-
-保留彩色源图、标注 JSON、SRT、旁白、逐幕画面轨、最终工程和验证报告，保证局部重渲染与回滚。
+Retain source art, annotation JSON, SRT, narration, scene tracks, final project, and reports to support partial rerenders and rollback.
