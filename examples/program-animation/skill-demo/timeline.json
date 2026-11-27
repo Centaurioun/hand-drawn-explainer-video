@@ -2,56 +2,56 @@
   "duration": 36,
   "audio_duration": 34.848,
   "voice": "zh_male_liufei_uranus_bigtts",
-  "alignment": "Full narration with scene boundaries chosen at measured sentence pauses; not word-level forced alignment.",
+  "alignment": "Translated English captions using the original Mandarin narration's measured sentence boundaries; not English speech alignment.",
   "scenes": [
     {
       "n": 1,
       "start": 0,
       "end": 3.96,
-      "caption": "每次让 AI 做周报，你是不是都要重新解释一遍要求？"
+      "caption": "Do you repeat the instructions every time AI writes your weekly report?"
     },
     {
       "n": 2,
       "start": 3.96,
       "end": 8.49,
-      "caption": "你可以把固定做法，整理成一套能反复使用的工作说明。"
+      "caption": "Turn your regular process into reusable working instructions."
     },
     {
       "n": 3,
       "start": 8.49,
       "end": 12.14,
-      "caption": "这就是 Skill：告诉 AI，这类任务应该怎么做。"
+      "caption": "That is a Skill: it tells AI how to handle this kind of task."
     },
     {
       "n": 4,
       "start": 12.14,
       "end": 17.16,
-      "caption": "比如周报：先看本周记录，再整理进展、问题和下周计划。"
+      "caption": "For a weekly report, review the notes, then summarize progress, issues, and next week's plan."
     },
     {
       "n": 5,
       "start": 17.16,
       "end": 21.49,
-      "caption": "需要时，还能附上模板、参考资料，或者处理数据的脚本。"
+      "caption": "Add templates, references, or data-processing scripts as needed."
     },
     {
       "n": 6,
       "start": 21.49,
       "end": 25.78,
-      "caption": "以后遇到同类任务，就能请 AI 照着做，少些重复交代。"
+      "caption": "Next time, ask AI to follow the same method instead of repeating the instructions."
     },
     {
       "n": 7,
       "start": 25.78,
       "end": 30.3,
-      "caption": "但 Skill 不会自动开通工具权限，也不能保证结果全对。"
+      "caption": "A Skill does not grant tool access or guarantee correct results."
     },
     {
       "n": 8,
       "start": 30.3,
-      "end": 36.0,
-      "caption": "记住，Skill，就是给 AI 准备的可复用工作指南。"
+      "end": 36,
+      "caption": "Remember: a Skill is a reusable work guide for AI."
     }
   ],
-  "narration_text": "每次让AI做周报，你是不是都要重新解释一遍要求？\n你可以把固定做法，整理成一套能反复使用的工作说明。\n这就是Skill：告诉AI，这类任务应该怎么做。\n比如周报：先看本周记录，再整理进展、问题和下周计划。\n需要时，还能附上模板、参考资料，或者处理数据的脚本。\n以后遇到同类任务，就能请AI照着做，少些重复交代。\n但Skill不会自动开通工具权限，也不能保证结果全对。\n记住，Skill，就是给AI准备的可复用工作指南。"
+  "narration_text": "Do you repeat the instructions every time AI writes your weekly report?\nTurn your regular process into reusable working instructions.\nThat is a Skill: it tells AI how to handle this kind of task.\nFor a weekly report, review the notes, then summarize progress, issues, and next week's plan.\nAdd templates, references, or data-processing scripts as needed.\nNext time, ask AI to follow the same method instead of repeating the instructions.\nA Skill does not grant tool access or guarantee correct results.\nRemember: a Skill is a reusable work guide for AI."
 }

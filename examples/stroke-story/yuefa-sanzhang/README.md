@@ -1,26 +1,25 @@
-# 《约法三章》：16:9 多幕逐笔故事动画案例
+# Three Articles of Law: 16:9 Multi-Scene Stroke Story
 
-这是最终采用的 38.5 秒横屏版本，1920×1080、30fps。它把完整口播拆成七幅连续历史故事画面，每幕从空白纸张开始，以 `skeleton` 连续落墨并完成彩色补全，完成后短暂停留，再自然切换到下一幕。
+The upstream selected landscape version lasts 38.5 seconds at 1920×1080, 30fps. Seven consecutive historical scenes start on blank paper, reveal continuous skeleton ink and color, hold briefly, then transition.
 
-![七幕末帧检查](seven-scenes-final-frames.jpg)
+![Original seven final frames](seven-scenes-final-frames.jpg)
 
-![手速与落墨过程检查](hand-speed-contact-sheet.jpg)
+![Original hand speed and drawing contact sheet](hand-speed-contact-sheet.jpg)
 
-- [观看 38.5 秒手速平滑版 MP4](yuefa-sanzhang-16x9-stroke-story.mp4)
-- [下载可编辑工程包](editable-project.zip)：包含七张彩色源图、逐幕标注、刘飞旁白、字幕、确定性文字层、时间轴和渲染文件；
-- `timeline.json`：七幕真实旁白时间轴；
-- `verification.json`：视频解码、音频、字幕和逐幕运动检查；
-- `seven-scenes-final-frames.jpg`：七幕最终画面检查；
-- `hand-speed-contact-sheet.jpg`：落墨过程与手部移动检查。
+- [Watch original 38.5-second MP4](yuefa-sanzhang-16x9-stroke-story.mp4).
+- [Original editable project archive](editable-project.zip): seven color images, annotations, Liu Fei narration, subtitles, deterministic text layers, timeline, and rendered files.
+- timeline.json: translated English captions on original seven-scene audio timing.
+- verification.json: original video, audio, subtitle, and motion checks.
+- seven-scenes-final-frames.jpg and hand-speed-contact-sheet.jpg: original QA images.
 
-七幕依次为：刘邦攻入咸阳、百姓忧惧、召集关中父老、宣布三条约法、废除秦朝苛法、秦人慰劳汉军、赢得关中民心。音轨复用已确认的火山引擎刘飞配音 `zh_male_liufei_uranus_bigtts`。成片实际解码 1155 帧，自动检查无错误、无警告。
+Scenes: Liu Bang enters Xianyang, people's fears, gathering Guanzhong elders, announcing three rules, abolishing harsh Qin laws, people rewarding the Han army, and winning Guanzhong's support. The original uses approved Volcengine Liu Fei narration (zh_male_liufei_uranus_bigtts). The upstream report recorded 1,155 decoded frames without automated errors or warnings. This is not a fresh verification of localized output.
 
-## 为什么不用旧竖屏样片
+The binary MP4, images, and ZIP remain unchanged original-language assets. English captions in the tracked timeline are translations rather than a new English voice alignment. Replace narration and realign before an English-spoken render.
 
-旧的 9:16 单幅画布把复杂历史群像、人物、道具和环境压在同一画面，容易出现画面元素互相干扰与跨区域串线。最终版不再强制四宫格或贴纸式语义岛，而采用“多幕连续故事”：每幅只承担一个完整事件，人物和环境可以在本幕自然接触，并从幕与幕的边界消除干扰。
+## Why not the old portrait sample?
 
-这说明“逐笔故事动画”不等于必须使用左右双语义岛。复杂历史故事在用户未限定竖屏时，应优先考虑 16:9 多幕结构。手速平滑版使用 `--hand-follow 0.35` 缓动手部追随，但不改变旁白、笔迹或场景时长。
+The old 9:16 canvas crowded historical characters, props, and environment, causing cross-region interference. The selected version uses one coherent event per scene with natural contact and occlusion, avoiding forced grids or sticker islands. Complex historical stories often benefit from 16:9 when portrait is not required. hand-follow 0.35 smooths displayed hand motion, not narration, strokes, or scene duration.
 
-这里的“逐笔”指程序化骨架追踪与轮廓感知上色，并非声称逐笔复刻真人的自然笔顺。它与 SVG 卡片移动、整图淡入或镜头缩放不同。
+Stroke drawing means algorithmic skeleton tracing and contour-aware coloring, not reproducing a human artist's exact stroke order. It differs from SVG movement, whole-image fades, or zooms.
 
-工程包用于复现案例，不代表新项目必须复制同一故事、时长或人物。解压后先按仓库安装文档创建逐笔隔离环境；其中路径应按本机位置重新选择，不要沿用其他电脑的绝对路径。
+The archive is for reproducing the example, not a generic story, duration, or character template. After extraction, follow installation instructions and resolve paths for your own machine.

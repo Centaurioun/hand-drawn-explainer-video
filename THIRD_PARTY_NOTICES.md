@@ -10,7 +10,7 @@ Runtime files under `vendor/srt-whiteboard-animation/` derive from [geeklee/srt-
 
 ## Ian Xiaohei Illustrations
 
-The repository's “小黑风格” preset is inspired by Ian's [helloianneo/ian-xiaohei-illustrations](https://github.com/helloianneo/ian-xiaohei-illustrations), including its black solid character with white dot eyes, pure-white hand-drawn presentation, generous negative space, and restrained red/orange/blue annotations. We thank Ian for publishing the visual IP, style guidance, examples, and workflow under the project's stated license. This repository adapts that visual direction for stroke-story animation and does not claim the Xiaohei style as a Nikola-original visual IP.
+The repository's “Xiaohei style” preset is inspired by Ian's [helloianneo/ian-xiaohei-illustrations](https://github.com/helloianneo/ian-xiaohei-illustrations), including its black solid character with white dot eyes, pure-white hand-drawn presentation, generous negative space, and restrained red/orange/blue annotations. We thank Ian for publishing the visual IP, style guidance, examples, and workflow under the project's stated license. This repository adapts that visual direction for stroke-story animation and does not claim the Xiaohei style as a Nikola-original visual IP.
 
 ## GSAP and HyperFrames
 

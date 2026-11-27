@@ -1,10 +1,12 @@
-# “什么是 Skill”：程序动画示例
+# What Is a Skill? Programmatic Animation Example
 
-36 秒可编辑 HTML/SVG/HyperFrames 工程，展示八个镜头、整段旁白、时间轴和确定性文字。它适合流程、关系和独立元素运动，不是逐笔故事路线。
+A 36-second editable HTML/SVG/HyperFrames project with eight scenes, original narration, timeline, and deterministic text. It demonstrates independent process and relationship animations, not stroke storytelling.
 
-![程序动画封面](preview.png)
+![Original programmatic-animation cover](preview.png)
 
-[观看 14 秒 MP4 样片](what-is-skill-sample.mp4)。样片中的人物、气泡、流程节点、箭头和文字都是独立 SVG/HTML 元素，由 GSAP/HyperFrames 按真实旁白时间轴驱动；它没有假装成“同一幅画被逐笔画出来”。
+[Watch the original 14-second MP4](what-is-skill-sample.mp4). Characters, bubbles, nodes, arrows, and text are independent SVG/HTML elements driven by GSAP/HyperFrames using narration timing.
+
+The editable HTML, script, and captions have been translated into English. The bundled WAV, MP4, and PNG are unchanged upstream Mandarin-language demonstration assets. English captions follow the original scene timings; they are not a newly synthesized or verified English audio track. Replace narration and realign timing for an English-spoken export.
 
 ```powershell
 npm install
@@ -13,6 +15,6 @@ npm run dev
 npm run render
 ```
 
-`npm install` 安装固定版本的 GSAP；生命周期脚本从 npm 包复制浏览器文件到 `assets/gsap.min.js`。该生成文件不提交到仓库，许可遵循 GSAP 自身条款。HyperFrames 由命令按固定版本调用。
+npm installs pinned GSAP; lifecycle scripts copy the browser bundle to assets/gsap.min.js. Generated files are not committed and GSAP's license applies. HyperFrames is invoked at a pinned version.
 
-旁白只作案例资产。新项目优先复用用户提供的合格音轨；需要新合成时默认使用火山引擎刘飞 `zh_male_liufei_uranus_bigtts`，用户明确指定时可改用其他火山音色。不要把案例文件本身或电脑系统朗读当成所有项目的正式旁白。
+For new projects prefer qualified user-supplied audio or an authorized language-compatible voice. Do not use sample audio or system speech as generic finished narration.

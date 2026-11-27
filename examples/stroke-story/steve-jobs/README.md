@@ -1,16 +1,14 @@
-# 乔布斯的一生：逐笔双语义岛案例
+# The Life of Steve Jobs: Dual Semantic Island Stroke Story
 
-这是风格和工程结构示例，不是对人物或品牌的官方呈现，也不暗示 Steve Jobs、Apple、Pixar 或其权利人认可本项目。
+This is a style and project-structure example, not an official portrayal or endorsement by Steve Jobs, Apple, Pixar, or their rights holders.
 
-文件：
+- source.png: approved natural-skin-tone chibi art, low line density, no long text.
+- annotation.json: left/right semantic regions, order, and drawing windows, translated into English.
+- regions-preview.png: original region and narrative-order preview.
+- semantic-island-sample.mp4: original approximately 8.9-second representative shot.
+- steve-jobs-biography.mp4: original approximately 57-second complete sample.
+- transition-contact.jpg: boundary contact sheet for checking first-region persistence and second-region start.
 
-- `source.png`：自然肤色 Q 版人物、低线条密度、无长文字的批准源图；
-- `annotation.json`：左右语义区、顺序和绘制窗口；
-- `regions-preview.png`：区域框和叙事顺序预览；
-- `semantic-island-sample.mp4`：约 8.9 秒代表镜头；
-- `steve-jobs-biography.mp4`：约 57 秒完整样片；
-- `transition-contact.jpg`：边界联系表，用于检查前一区保留与后一区起笔。
+Retain natural skin tones, complete human anatomy, and age changes. Xiaohei affects lines, negative space, and annotations, not replacing real people with black mascots. Render names and keywords deterministically.
 
-人物必须是自然肤色、完整人形并随年龄改变；“小黑风格”只影响线条、留白和批注语言，不能把真实人物画成黑脸小怪物。专名和关键词使用后期确定性文字层。
-
-公开包只保留代表性的源图和视频，没有包含云服务凭据、原始请求记录或本机路径。
+The original media are preserved and may contain Mandarin narration or Chinese on-screen text. No credentials, private request records, or local paths are distributed.

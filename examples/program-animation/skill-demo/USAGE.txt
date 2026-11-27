@@ -1,0 +1,7 @@
+This upstream 36-second editable demo contains eight scenes, original Mandarin narration, and SVG elements. The editable interface and captions are translated into English; the existing audio and rendered preview are not dubbed or re-rendered.
+Do not reuse the fixed script or timing for unrelated projects. Study the articulated arms, bubbles, assembling cards, process arrows, and closed permission lock.
+Requires Node.js, HyperFrames 0.8.20, complete working FFmpeg/FFprobe, and a rendering browser.
+Run npm install, npm run check, and then npm run render in the project directory. First installation may download pinned versions.
+GSAP is installed by npm and copied into assets, not distributed in the repository. English typography uses Arial/Helvetica and Georgia; verify layout if replacing fonts.
+No secrets are bundled. The original narration is for this example only. No new voice API call was made.
+English captions use the original sentence boundaries and are translations, not word-level English audio alignment.
