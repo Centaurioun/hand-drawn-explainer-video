@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""检查逐笔故事源图的语义区域是否适合独立落墨。"""
+"""Check whether source-art semantic regions can be drawn independently."""
 
 from __future__ import annotations
 
@@ -32,19 +32,19 @@ def gap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="检查逐笔源图的区域重叠、留白和跨区连通线")
+    parser = argparse.ArgumentParser(description="Check source-art region overlap, spacing, and cross-region connected lines")
     parser.add_argument("image")
     parser.add_argument("annotation")
     parser.add_argument("--report", required=True)
     parser.add_argument("--min-gutter-ratio", type=float, default=0.035,
-                        help="区域矩形最小间距占画面宽度的比例，默认 3.5%%")
+                        help="Minimum gap between region rectangles as a fraction of frame width, default 3.5%%")
     parser.add_argument("--bridge-min-pixels", type=int, default=80,
-                        help="同时进入多个区域的连通前景最小像素数")
+                        help="Minimum connected foreground pixels entering multiple regions")
     args = parser.parse_args()
 
     image = cv2.imread(args.image, cv2.IMREAD_COLOR)
     if image is None:
-        raise SystemExit(f"无法读取图片：{args.image}")
+        raise SystemExit(f"Cannot read image: {args.image}")
     annotation = json.loads(Path(args.annotation).read_text(encoding="utf-8"))
     height, width = image.shape[:2]
     expected = annotation.get("canvas", {})
@@ -75,7 +75,7 @@ def main() -> int:
                 warnings.append({"type": "gutter_too_small", "a": a_id, "b": b_id,
                                  "pixels": round(distance, 1), "recommendedMinimum": min_gutter})
 
-    # 清晰墨线和高饱和色块进入前景；亮、低饱和的轻微纸纹通常被排除。
+    # Clear ink and saturated color blocks are foreground; light low-saturation paper texture is usually excluded.
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     foreground = ((gray < 150) | ((hsv[:, :, 1] > 70) & (hsv[:, :, 2] < 235))).astype(np.uint8)
@@ -108,7 +108,7 @@ def main() -> int:
         "pairs": pair_metrics,
         "errors": errors,
         "warnings": warnings,
-        "note": "自动检查用于拦截明显重叠和跨区连线，仍需人工逐区播放确认。",
+        "note": "Automatic checks catch obvious overlaps and crossing lines; manual region-by-region playback is still required.",
     }
     Path(args.report).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))

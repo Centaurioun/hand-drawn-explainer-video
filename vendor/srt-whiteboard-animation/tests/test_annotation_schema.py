@@ -18,7 +18,7 @@ def annotation(region: dict | None = None) -> dict:
         "elements": [
             {
                 "id": "subject",
-                "label": "主体",
+                "label": "Subject",
                 "sequence": 1,
                 "region": region or {"x": 10, "y": 10, "width": 60, "height": 50},
                 "reveal": {"startMs": 0, "durationMs": 500, "protectedRegions": []},
@@ -38,18 +38,18 @@ class AnnotationSchemaTests(unittest.TestCase):
             annotation({"x": 90, "y": 70, "width": 20, "height": 20}),
             (100, 80),
         )
-        self.assertTrue(any("超出画布" in error for error in errors))
+        self.assertTrue(any("exceeds canvas" in error for error in errors))
 
     def test_image_size_mismatch_is_error(self) -> None:
         errors, _ = validate_annotation(annotation(), (120, 80))
-        self.assertTrue(any("与原图" in error for error in errors))
+        self.assertTrue(any("does not match source image" in error for error in errors))
 
     def test_overlap_is_warning(self) -> None:
         data = annotation()
         data["elements"].append(
             {
                 "id": "second",
-                "label": "结果",
+                "label": "Result",
                 "sequence": 2,
                 "region": {"x": 20, "y": 20, "width": 40, "height": 30},
                 "reveal": {"startMs": 300, "durationMs": 400, "protectedRegions": []},
@@ -57,7 +57,7 @@ class AnnotationSchemaTests(unittest.TestCase):
         )
         errors, warnings = validate_annotation(data, (100, 80))
         self.assertEqual(errors, [])
-        self.assertTrue(any("时间窗重叠" in warning for warning in warnings))
+        self.assertTrue(any("overlapping drawing windows" in warning for warning in warnings))
 
 
 if __name__ == "__main__":

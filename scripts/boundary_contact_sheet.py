@@ -31,14 +31,14 @@ def frame_at(container: av.container.InputContainer, stream: av.video.stream.Vid
         if frame.time is not None and frame.time >= target_seconds:
             break
     if candidate is None:
-        raise RuntimeError(f"无法读取 {time_ms}ms 附近的视频帧")
+        raise RuntimeError(f"Cannot read a video frame near {time_ms}ms")
     return candidate.to_image().convert("RGB")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="按语义边界时间抽帧并生成联系表")
+    parser = argparse.ArgumentParser(description="Extract frames at semantic boundaries and create a contact sheet")
     parser.add_argument("--video", required=True)
-    parser.add_argument("--checks", required=True, help="包含 checks[{label,timeMs}] 的 JSON")
+    parser.add_argument("--checks", required=True, help="JSON containing checks[{label,timeMs}]")
     parser.add_argument("--output", required=True)
     parser.add_argument("--columns", type=int, default=2)
     parser.add_argument("--thumb-width", type=int, default=720)
@@ -50,7 +50,7 @@ def main() -> int:
     data = json.loads(checks_path.read_text(encoding="utf-8"))
     checks = data.get("checks", [])
     if not checks:
-        raise SystemExit("checks 不能为空")
+        raise SystemExit("checks must not be empty")
 
     frames: list[tuple[str, int, Image.Image]] = []
     with av.open(str(video)) as container:
@@ -59,7 +59,7 @@ def main() -> int:
             label = str(item.get("label", "check"))
             time_ms = int(item["timeMs"])
             if time_ms < 0:
-                raise ValueError(f"检查点不能为负数：{label}={time_ms}ms")
+                raise ValueError(f"Checkpoint cannot be negative: {label}={time_ms}ms")
             frames.append((label, time_ms, frame_at(container, stream, time_ms)))
 
     columns = max(1, args.columns)

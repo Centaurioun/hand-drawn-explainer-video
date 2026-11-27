@@ -18,7 +18,7 @@ def run(command: list[str]) -> None:
     completed = subprocess.run(command, text=True, capture_output=True, encoding="utf-8", errors="replace")
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
-        raise RuntimeError(f"命令失败（{completed.returncode}）：{detail[-3000:]}")
+        raise RuntimeError(f"Command failed ({completed.returncode}): {detail[-3000:]}")
 
 
 def ass_filter(path: Path) -> str:
@@ -27,17 +27,17 @@ def ass_filter(path: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="统一时间基准并合成逐笔故事视频；源图补全须显式启用")
-    parser.add_argument("--manifest", required=True, help="项目清单 JSON")
-    parser.add_argument("--ffmpeg", required=True, help="可运行的 FFmpeg 绝对路径")
-    parser.add_argument("--output", required=True, help="最终 MP4")
-    parser.add_argument("--fade-ms", type=int, default=650, help="每幕末尾源图淡入时长，默认650ms")
-    parser.add_argument("--lead-ms", type=int, default=900, help="淡入开始距幕尾的时间，默认900ms")
+    parser = argparse.ArgumentParser(description="Normalize the time base and compose stroke-story video; source-image completion is opt-in")
+    parser.add_argument("--manifest", required=True, help="Project manifest JSON")
+    parser.add_argument("--ffmpeg", required=True, help="Absolute path to working FFmpeg")
+    parser.add_argument("--output", required=True, help="Final MP4")
+    parser.add_argument("--fade-ms", type=int, default=650, help="Source-image fade duration at each scene end, default 650ms")
+    parser.add_argument("--lead-ms", type=int, default=900, help="Time from fade start to scene end, default 900ms")
     parser.add_argument(
         "--source-overlay",
         choices=("never", "always"),
         default="never",
-        help="是否在每幕末尾淡入批准源图；默认 never，只有末帧对照确认漏色后才用 always",
+        help="Fade approved source art at each scene end; default never, use always only after confirming missing color in final-frame comparison",
     )
     args = parser.parse_args()
 
@@ -52,7 +52,7 @@ def main() -> int:
     fps = int(data.get("fps", 30))
     scenes = data.get("scenes", [])
     if not scenes:
-        raise SystemExit("manifest.scenes 不能为空")
+        raise SystemExit("manifest.scenes must not be empty")
 
     with tempfile.TemporaryDirectory(prefix="stroke-finalize-") as tmp_name:
         tmp = Path(tmp_name)
@@ -62,16 +62,16 @@ def main() -> int:
             video = (root / scene["video"]).resolve()
             duration_ms = int(scene["durationMs"])
             if not video.is_file():
-                raise FileNotFoundError(f"第{index}幕视频缺失：{video}")
+                raise FileNotFoundError(f"Missing scene {index} video: {video}")
             total_ms += duration_ms
             scene_out = tmp / f"scene-{index:03d}.mp4"
             if args.source_overlay == "always":
                 image_value = scene.get("image")
                 if not image_value:
-                    raise KeyError(f"第{index}幕启用源图补全但未提供 image")
+                    raise KeyError(f"Scene {index} enables source completion but provides no image")
                 image = (root / image_value).resolve()
                 if not image.is_file():
-                    raise FileNotFoundError(f"第{index}幕源图缺失：{image}")
+                    raise FileNotFoundError(f"Missing scene {index} source image: {image}")
                 fade_ms = min(args.fade_ms, max(1, duration_ms // 3))
                 fade_start = max(0, duration_ms - args.lead_ms) / 1000
                 overlay = (
